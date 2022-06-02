@@ -18,7 +18,7 @@ class EnumTests extends AnyFunSuite {
     ))
 
     Enumeration.enumerateLeafNodes(vocab, Map.empty, Map.empty)
-    Enumeration.enumerateNodes(vocab, Map.empty, Map.empty, 3)
+    Enumeration.enumerate(vocab, Map.empty, Map.empty, 20)
     closeFile()
   }
 }

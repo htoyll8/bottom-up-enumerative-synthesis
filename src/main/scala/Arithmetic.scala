@@ -478,8 +478,9 @@ object Arithmetic {
       }
   }
 
-  def canMake(e: String, childrenCandidates: List[Type]): Boolean = (childrenCandidates) match {
+  def canMake(e: String, childrenCandidatesTypes: List[Type]): Boolean = (childrenCandidatesTypes) match {
     case List(IntTy, IntTy) if e == "PLUS" => true
+    case List(IntTy, IntTy) if e == "MINUS" => true
     case List(StringArrTy, IntTy) if e == "INDEX" => true
     case List(NumArrTy, IntTy) if e == "INDEX" => true
     case List(StringTy, IntTy) if e == "INDEX" => true
