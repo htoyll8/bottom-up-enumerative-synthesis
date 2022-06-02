@@ -16,13 +16,65 @@ object Enumeration {
   val prevLevelDiscovered: ListBuffer[Expr] = ListBuffer[Expr]()
   val currentLevelDiscovered: ListBuffer[Expr] = ListBuffer[Expr]()
 
+  def enumerateLeafNodes(grammar: Vocab, typeCtx: Env[Type], ctx: Env[Value]): Unit = {
+    val leafNodes = grammar.leafNodes
+    val operations = grammar.operations
+
+    def typecheck(ast: Expr):Type = tyOf(typeCtx,ast)
+
+    operations.foreach(exprStr => {
+      val childrenCandidates = combinationList(leafNodes, aryOf(exprStr))
+      val children = childrenCandidates.filter(c => canMake(exprStr, c.map(typecheck)))
+      while (childrenCandidates.hasNext) {
+        val params = childrenCandidates.next()
+        val ast = init(exprStr, params)
+        if (tyOf(typeCtx, ast) != ErrTy && verify(ctx,typeCtx,ast)) prevLevelDiscovered += ast
+      }
+    })
+  }
+
+  def enumerateNodes(grammar: Vocab,
+                     typeCtx: Env[Type],
+                     ctx: Env[Value],
+                     timeout: Int): Unit = {
+    val operations = grammar.operations
+    val deadline = timeout.seconds.fromNow
+    def typecheck(ast: Expr):Type = tyOf(typeCtx,ast)
+
+    breakable {
+      while(deadline.hasTimeLeft) {
+        operations.foreach(exprStr => {
+          println("Operations: " + exprStr)
+          println("Prev discovered: " + prevLevelDiscovered)
+          val childrenCandidates: List[List[Expr]] = combinationList(prevLevelDiscovered.toList, aryOf(exprStr)).toList
+          val children = childrenCandidates.filter(c => {
+            val childrenCandidateTypes = c.map(typecheck)
+            canMake(exprStr, childrenCandidateTypes)
+          }).iterator
+
+          println("Children: " + children.size)
+
+          while (children.hasNext) {
+            val params = children.next()
+            val ast = init(exprStr, params)
+            if (tyOf(typeCtx, ast) != ErrTy && verify(ctx,typeCtx,ast)) currentLevelDiscovered += ast
+          }
+
+          println("Cur size: " + currentLevelDiscovered.size)
+        })
+
+        changeLevel()
+      }
+    }
+  }
+
   def writeJson(exprs: List[Expr]): List[JsObject] = exprs.map(ExprFormat.writes)
 
   def writeFile(s: String): Unit = bw.write(s+"\n")
 
   def closeFile(): Unit = bw.close()
 
-  def combinationList(ls: List[Expr], arity: Int) =
+  def combinationList(ls: List[Expr], arity: Int): Iterator[List[Expr]] =
     ls.combinations(arity).flatMap(c => c.permutations)
 
   def flushPreviousLevel(): Unit = {
@@ -38,52 +90,7 @@ object Enumeration {
   def changeLevel(): Unit = {
     flushPreviousLevel()
     prevLevelDiscovered ++= currentLevelDiscovered
+    println("Prev: " + prevLevelDiscovered)
     currentLevelDiscovered.clear()
-  }
-
-  def computeCurrentLevel(childrenCandidates: Iterator[List[Expr]],
-                          outputLst: ListBuffer[Expr],
-                          exprStr: String,
-                          typeCtx: Env[Type],
-                          ctx: Env[Value]) = {
-    while (childrenCandidates.hasNext) {
-      val params = childrenCandidates.next()
-      val ast = init(exprStr, params)
-      if (tyOf(typeCtx, ast) != ErrTy && verify(ctx,typeCtx,ast)) outputLst += ast
-    }
-  }
-
-  def enumerateLeafNodes(grammar: Vocab, typeCtx: Env[Type], ctx: Env[Value]): Unit = {
-    val leafNodes = grammar.leafNodes
-    val operations = grammar.operations
-    operations.foreach(exprStr => {
-      val childrenCandidates = (leafNodes ++ leafNodes).combinations(aryOf(exprStr))
-      computeCurrentLevel(childrenCandidates, prevLevelDiscovered, exprStr, typeCtx, ctx)
-    })
-  }
-
-  def enumerateNodes(grammar: Vocab,
-                     typeCtx: Env[Type],
-                     ctx: Env[Value],
-                     timeout: Int): Unit = {
-    val plist = prevLevelDiscovered
-    val operations = grammar.operations
-    val deadline = timeout.seconds.fromNow
-
-    def typecheck(ast: Expr):Type =
-      tyOf(typeCtx,ast)
-
-    breakable {
-      operations.foreach(exprStr => {
-        if (!deadline.hasTimeLeft) {
-          flushCurrentLevel()
-          break()
-        }
-        val childrenCandidates: List[List[Expr]] = combinationList(plist.toList, aryOf(exprStr)).toList
-        val children = childrenCandidates.filter(c => canMake(exprStr, c.map(typecheck))).toIterator
-        computeCurrentLevel(children, currentLevelDiscovered, exprStr, typeCtx, ctx)
-      })
-      changeLevel()
-    }
   }
 }
