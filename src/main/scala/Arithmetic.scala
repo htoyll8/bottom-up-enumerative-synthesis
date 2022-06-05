@@ -63,8 +63,8 @@ object Arithmetic {
   case class CharArrV(c: ListBuffer[Char]) extends Value
   case class StringArrV(c: ListBuffer[String]) extends Value
   case class PairV(v1: Value, v2: Value) extends Value
-  case class ClosureV(env: Env[Value], x: Variable, e: Expr) extends Value
-  case class RecV(env: Env[Value], f: Variable, x: Variable, e: Expr) extends Value
+  case class ClosureV(env: List[Env[Value]], x: Variable, e: Expr) extends Value
+  case class RecV(env: List[Env[Value]], f: Variable, x: Variable, e: Expr) extends Value
 
   // Types
   abstract class Type
@@ -207,6 +207,8 @@ object Arithmetic {
     }
   }
 
+  def verifyMultipleCtx(envs: List[Env[Value]], ctx: Env[Type], e: Expr) =  envs.forall(env => verify(env, ctx, e))
+
   def verify(env: Env[Value], ctx: Env[Type], e: Expr): Boolean = e match {
     case Times(List(e1,e2)) => eval(env,e1) != NumV(0) || eval(env,e2) != NumV(0)
     case Lower(List(e)) => eval(env,e) != StringV(" ") && eval(env,e) != StringV("")
@@ -215,7 +217,7 @@ object Arithmetic {
     case StrReplace(List(e1,e2)) => e1 ne e2
     case StartsWith(List(e1,e2)) => e1 ne e2
     case EndsWith(List(e1,e2)) => e1 ne e2
-    case StrSplit(List(e1: Str,e2: Str)) => (e1 ne e2) && !e1.s.contains(e2.s)
+    case StrSplit(List(e1:Str,e2:Str)) => (e1 ne e2) && !e1.s.contains(e2.s)
     case Concat(List(e1,e2)) =>
       (eval(env,e1) != StringV(" ") && eval(env,e1) != StringV("")) && (eval(env,e2) != StringV(" ") && eval(env,e2) != StringV(""))
     case Index(List(e1,e2)) => e1 match {
@@ -224,24 +226,17 @@ object Arithmetic {
     }
     case Length(List(e)) => e match {
       case s: Str => s.s.trim.nonEmpty
-      case e: Expr => tyOf(ctx, e) == StringTy
+      case e: Expr => tyOf(ctx, e) == StringTy || tyOf(ctx, e) == StringArrTy
       case _ => false
     }
-    case _ => true
-  }
-
-  def postprocess(env: Env[Value], e: Expr): Boolean = e match {
-    case StrSplit(List(e1: Expr,e2: Expr)) =>
-      val e1V = eval(env,e1).isInstanceOf[StringV]
-      val e2V = eval(env,e2).isInstanceOf[StringV]
-      println(e1V.asInstanceOf[StringV].s, e2V.asInstanceOf[StringV].s)
-      !(e1V.asInstanceOf[StringV].s).contains(e2V.asInstanceOf[StringV].s)
     case _ => true
   }
 
   // ======================================================================
   // Section 2: Evaluation
   // ======================================================================
+
+  def evalMultipleCtx(envs: List[Env[Value]], e: Expr): List[Value] =  envs.map(env => eval(env, e))
 
   def eval(env: Env[Value], e: Expr): Value = e match {
     // Arithmetic
@@ -306,6 +301,8 @@ object Arithmetic {
     case Let(x, e1, e2) =>
       eval(env + (x -> eval(env, e1)), e2)
   }
+
+  def mkCodeMultipleCtx(envs: List[Env[Value]], e: Expr): String = mkCode(envs.head, e)
 
   def mkCode(env: Env[Value], e: Expr): String = e match {
     // Arithmetic
@@ -496,6 +493,29 @@ object Arithmetic {
     case List(StringTy, StringTy) if e == "ARRJOIN" => true
     case List(StringTy,CharArrTy) if e == "ARRJOIN" => true
     case _ => false
+  }
+
+  def astSize(expr: Expr): Int = expr match {
+    // Arithmetic
+    case Num(_) => 1
+
+    // String
+    case Str(_) => 1
+    case Var(_) => 1
+    case Lower(List(e)) =>
+      astSize(e) + 1
+    case Length(List(e)) =>
+      astSize(e) + 1
+    case Index(List(e1,e2)) =>
+      astSize(e1) + astSize(e2) + 1
+    case Concat(List(e1,e2)) =>
+      astSize(e1) + astSize(e2) + 1
+    case StrSplit(List(e1,e2)) =>
+      astSize(e1) + astSize(e2) + 1
+    case StrReplace(List(e1,e2,e3)) =>
+      astSize(e1) + astSize(e2) + astSize(e3) + 1
+    case StrToList(List(e1)) =>
+      astSize(e1) + 1
   }
 
   def aryOf(e: String): Int = e match {

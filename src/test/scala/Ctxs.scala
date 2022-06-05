@@ -1,11 +1,11 @@
 package org.bottomup.arithmetic
-import Arithmetic.{Bool, ErrTy, Expr, Index, IntTy, Minus, Num, NumArr, NumV, Plus, Str, StrSplit, StrToList, StringArr, StringArrV, StringTy, StringV, Type, Value, Var, aryOf, canMake, eval, init, mkCode, postprocess, tyOf, verify}
 
-import org.bottomup.arithmetic.Enumeration.closeFile
-import org.bottomup.arithmetic.JsonSerializer.ExprFormat
+import Arithmetic._
+import Enumeration.closeFile
+
 import org.scalatest.funsuite.AnyFunSuite
 
-class EnumTests extends AnyFunSuite {
+class Ctxs extends AnyFunSuite {
   test("Find 5") {
     val vocab = Vocab(List(
       Num(1),
