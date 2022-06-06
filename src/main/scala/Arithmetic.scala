@@ -1,6 +1,6 @@
 package org.bottomup.arithmetic
 
-import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, isAlpha, isDigit, length, lower, multiply, replaceStr, split, startsWith, strToList, subtract, upper}
+import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, isAlpha, isDigit, length, lower, multiply, replaceStr, split, startsWith, strToList, substring, subtract, upper}
 
 import org.bottomup.arithmetic.Arithmetic.Verifier.indices
 
@@ -36,6 +36,7 @@ object Arithmetic {
   case class Concat(children: List[Expr]) extends Expr
   case class Lower(children: List[Expr]) extends Expr
   case class Upper(children: List[Expr]) extends Expr
+  case class StrSubStr(children: List[Expr]) extends Expr
   case class StrSplit(children: List[Expr]) extends Expr
   case class StrReplace(children: List[Expr]) extends Expr
   case class StrToList(children: List[Expr]) extends Expr
@@ -136,6 +137,12 @@ object Arithmetic {
       case _ => sys.error("Argument to concat are not strings.")
     }
 
+    def substring(v1: Value, v2: Value, v3: Value): Value = (v1, v2, v3) match {
+      case (StringV(v1), NumV(v2), NumV(v3)) => StringV(v1.substring(v2,v3))
+      case _ => sys.error("Argument to concat are not strings.")
+    }
+
+
     def split(v1: Value, v2: Value): Value = (v1, v2) match {
       case (StringV(v1), StringV(v2)) => StringArrV(ListBuffer[String]() ++= v1.split(v2))
       case _ => sys.error("Argument to concat are not strings.")
@@ -210,25 +217,47 @@ object Arithmetic {
   def verifyMultipleCtx(envs: List[Env[Value]], ctx: Env[Type], e: Expr) =  envs.forall(env => verify(env, ctx, e))
 
   def verify(env: Env[Value], ctx: Env[Type], e: Expr): Boolean = e match {
+    // Arithmetic
     case Times(List(e1,e2)) => eval(env,e1) != NumV(0) || eval(env,e2) != NumV(0)
     case Lower(List(e)) => eval(env,e) != StringV(" ") && eval(env,e) != StringV("")
     case Upper(List(e)) => eval(env,e) != StringV(" ") && eval(env,e) != StringV("")
     case Minus(List(e1,e2)) => e1 ne e2
+
+    // String
+    case Lower(List(e)) => !e.isInstanceOf[Lower]
+    case StrToList(List(e)) => eval(env,e) != StringV(" ") && eval(env,e) != StringV("")
     case StrReplace(List(e1,e2)) => e1 ne e2
     case StartsWith(List(e1,e2)) => e1 ne e2
     case EndsWith(List(e1,e2)) => e1 ne e2
-    case StrSplit(List(e1:Str,e2:Str)) => (e1 ne e2) && !e1.s.contains(e2.s)
+    case StrSubStr(List(e1,e2,e3)) =>
+      val startIdx = eval(env,e2).asInstanceOf[NumV].n
+      val endIdx = eval(env,e3).asInstanceOf[NumV].n
+      val strLength = eval(env,e1).asInstanceOf[StringV].s.length
+      startIdx >= 0 && startIdx < endIdx && endIdx <= strLength
+    case StrSplit(List(e1,e2)) =>
+      val e1Val = eval(env,e1).asInstanceOf[StringV].s
+      val e2Val = eval(env,e2).asInstanceOf[StringV].s
+      (e1 ne e2) && e1Val.contains(e2Val)
     case Concat(List(e1,e2)) =>
       (eval(env,e1) != StringV(" ") && eval(env,e1) != StringV("")) && (eval(env,e2) != StringV(" ") && eval(env,e2) != StringV(""))
     case Index(List(e1,e2)) => e1 match {
       case s: Str => s.s.trim.nonEmpty && indices(eval(env,s),eval(env,e2))
-      case _ => indices(eval(env,e1),eval(env,e2))
+      case _ => {
+        val res = indices(eval(env,e1),eval(env,e2))
+        //println(e1, e2, res)
+        res
+      }
     }
     case Length(List(e)) => e match {
       case s: Str => s.s.trim.nonEmpty
       case e: Expr => tyOf(ctx, e) == StringTy || tyOf(ctx, e) == StringArrTy
       case _ => false
     }
+
+    // List
+    case ArrJoin(List(e1, e2)) => (e1 ne e2)
+
+    // Default
     case _ => true
   }
 
@@ -256,6 +285,8 @@ object Arithmetic {
       index(eval(env,e1),eval(env,e2))
     case Concat(List(e1,e2)) =>
       concat(eval(env,e1),eval(env,e2))
+    case StrSubStr(List(e1,e2,e3)) =>
+      substring(eval(env,e1),eval(env,e2),eval(env,e3))
     case StrSplit(List(e1,e2)) =>
       split(eval(env,e1),eval(env,e2))
     case StrReplace(List(e1,e2,e3)) =>
@@ -317,6 +348,8 @@ object Arithmetic {
     // String
     case Str(s) => "\'" + s +  "\'"
     case Length(List(e: Expr)) => "len(" + mkCode(env,e) + ")"
+    case StrSubStr(List(e1,e2,e3)) =>
+      mkCode(env,e1) + "[" + mkCode(env,e2) + ":" + mkCode(env,e3) + "]"
     case StrSplit(List(e1,e2)) =>
       mkCode(env,e1) + ".split(" + mkCode(env,e2) + ")"
     case Index(List(e1,e2)) =>
@@ -326,7 +359,7 @@ object Arithmetic {
     case StrReplace(List(e1,e2,e3)) =>
       mkCode(env,e1) + ".replace(" + mkCode(env,e2) + "," + mkCode(env,e3) + ")"
     case StrToList(List(e1)) =>
-      "List(" + mkCode(env,e1) + ")"
+      "list(" + mkCode(env,e1) + ")"
 
     //  Bool
     case Bool(b) => b.toString
@@ -396,6 +429,10 @@ object Arithmetic {
     }
     case Concat(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
       case (StringTy,StringTy) => StringTy
+      case _ => ErrTy
+    }
+    case StrSubStr(List(e1: Expr, e2: Expr, e3: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2),tyOf(ctx,e3)) match {
+      case (StringTy,IntTy,IntTy) => StringTy
       case _ => ErrTy
     }
     case StrSplit(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
@@ -484,25 +521,30 @@ object Arithmetic {
     case List(StringTy, StringTy) if e == "SPLIT" => true
     case List(StringTy, StringTy) if e == "CONCAT" => true
     case List(StringTy) if e == "LOWER" => true
+    case List(StringTy) if e == "UPPER" => true
     case List(StringArrTy) if e == "LENGTH" => true
     case List(NumArrTy) if e == "LENGTH" => true
     case List(StringTy) if e == "LENGTH" => true
     case List(StringTy) if e == "STRTOLIST" => true
-    case List(StringArrTy) if e == "STRTOLIST" => true
-    case List(StringTy,StringArrTy) if e == "ARRJOIN" => true
+    case List(StringTy, StringArrTy) if e == "ARRJOIN" => true
     case List(StringTy, StringTy) if e == "ARRJOIN" => true
-    case List(StringTy,CharArrTy) if e == "ARRJOIN" => true
+    case List(StringTy, CharArrTy) if e == "ARRJOIN" => true
+    case List(StringTy, StringTy, StringTy) if e == "STRREPLACE" => true
+    case List(StringTy, IntTy, IntTy) if e == "STRSUBSTR" => true
     case _ => false
   }
 
   def astSize(expr: Expr): Int = expr match {
     // Arithmetic
     case Num(_) => 1
+    case Minus(List(e1, e2)) => astSize(e1) + astSize(e2)
 
     // String
     case Str(_) => 1
     case Var(_) => 1
     case Lower(List(e)) =>
+      astSize(e) + 1
+    case Upper(List(e)) =>
       astSize(e) + 1
     case Length(List(e)) =>
       astSize(e) + 1
@@ -512,10 +554,18 @@ object Arithmetic {
       astSize(e1) + astSize(e2) + 1
     case StrSplit(List(e1,e2)) =>
       astSize(e1) + astSize(e2) + 1
+    case StrSubStr(List(e1,e2,e3)) =>
+      astSize(e1) + astSize(e2) + astSize(e3) + 1
     case StrReplace(List(e1,e2,e3)) =>
       astSize(e1) + astSize(e2) + astSize(e3) + 1
     case StrToList(List(e1)) =>
       astSize(e1) + 1
+
+    // List
+    case ArrAppend(List(e1, e2)) =>
+      astSize(e1) + astSize(e2) + 1
+    case ArrJoin(List(e1, e2)) =>
+      astSize(e1) + astSize(e2) + 1
   }
 
   def aryOf(e: String): Int = e match {
@@ -531,6 +581,7 @@ object Arithmetic {
     case "SPLIT"            => 2
     case "LOWER"            => 1
     case "UPPER"            => 1
+    case "STRSUBSTR"        => 3
     case "STRREPLACE"       => 3
     case "STRTOLIST"        => 1
 
@@ -565,6 +616,7 @@ object Arithmetic {
     case "SPLIT"      => StrSplit(children)
     case "LOWER"      => Lower(children)
     case "UPPER"      => Upper(children)
+    case "STRSUBSTR"  => StrSubStr(children)
     case "STRREPLACE" => StrReplace(children)
     case "STRTOLIST"  => StrToList(children)
 
