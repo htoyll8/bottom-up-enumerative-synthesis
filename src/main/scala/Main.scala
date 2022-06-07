@@ -7,36 +7,5 @@ import scala.collection.mutable
 
 object Main {
   def main(args: Array[String]): Unit = {
-    val vocab = Vocab(List(
-      Var("str"),
-      Str(""),
-      Str("<"),
-      Str(">"),
-    ),
-      mutable.Map(
-        //"CONCAT" -> 0.7,
-        "STRREPLACE" -> 0.8,
-      ))
-
-    val ctx = List(
-      Map(
-        Var("str").x -> StringV("a < 4 and a > 0")
-      ),
-      Map(
-        Var("str").x -> StringV("<open and <close>")
-      )
-    )
-
-    val typeCtx = Map(
-      Var("str").x -> StringTy,
-    )
-
-    val res = List(
-      StringV("a 4 and a 0"),
-      StringV("open and close")
-    )
-
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 4, res)
   }
 }

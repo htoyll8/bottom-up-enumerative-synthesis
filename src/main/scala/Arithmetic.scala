@@ -1,6 +1,6 @@
 package org.bottomup.arithmetic
 
-import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, isAlpha, isDigit, length, lower, multiply, replaceStr, split, startsWith, strToList, substring, subtract, upper}
+import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, indexOf, isAlpha, isDigit, length, lower, multiply, replaceStr, split, startsWith, strToList, substring, subtract, upper}
 
 import org.bottomup.arithmetic.Arithmetic.Verifier.indices
 
@@ -33,6 +33,7 @@ object Arithmetic {
   case class Str(s: String) extends Expr
   case class Length(children: List[Expr]) extends Expr
   case class Index(children: List[Expr]) extends Expr
+  case class IndexOf(children: List[Expr]) extends Expr
   case class Concat(children: List[Expr]) extends Expr
   case class Lower(children: List[Expr]) extends Expr
   case class Upper(children: List[Expr]) extends Expr
@@ -132,6 +133,12 @@ object Arithmetic {
       case _ => sys.error("Argument to index is not a string and index.")
     }
 
+    def indexOf(v1: Value, v2: Value): Value = (v1, v2) match {
+      case (StringV(v1), StringV(v2)) => NumV(v1.indexOf(v2))
+      case (StringArrV(v1), StringV(v2)) => NumV(v1.indexOf(v2))
+      case _ => sys.error("Argument to index is not a string and index.")
+    }
+
     def concat(v1: Value, v2: Value): Value = (v1, v2) match {
       case (StringV(v1), StringV(v2)) => StringV(v1.concat(v2))
       case _ => sys.error("Argument to concat are not strings.")
@@ -225,28 +232,38 @@ object Arithmetic {
 
     // String
     case Lower(List(e)) => !e.isInstanceOf[Lower]
-    case StrToList(List(e)) => eval(env,e) != StringV(" ") && eval(env,e) != StringV("")
-    case StrReplace(List(e1,e2)) => e1 ne e2
+    case StrToList(List(e)) =>
+      val eVal = eval(env,e)
+      eVal != StringV(" ") && eVal != StringV("")
+    case StrReplace(List(e1,e2,e3)) =>
+      val e1Val = eval(env,e1).asInstanceOf[StringV].s
+      val e2Val = eval(env,e2).asInstanceOf[StringV].s
+      (e2 ne e3) && e1Val.contains(e2Val)
     case StartsWith(List(e1,e2)) => e1 ne e2
     case EndsWith(List(e1,e2)) => e1 ne e2
     case StrSubStr(List(e1,e2,e3)) =>
+      val strLength = eval(env,e1).asInstanceOf[StringV].s.length
       val startIdx = eval(env,e2).asInstanceOf[NumV].n
       val endIdx = eval(env,e3).asInstanceOf[NumV].n
-      val strLength = eval(env,e1).asInstanceOf[StringV].s.length
-      startIdx >= 0 && startIdx < endIdx && endIdx <= strLength
+      (startIdx >= 0) && (startIdx < endIdx) && (endIdx <= strLength)
     case StrSplit(List(e1,e2)) =>
       val e1Val = eval(env,e1).asInstanceOf[StringV].s
       val e2Val = eval(env,e2).asInstanceOf[StringV].s
       (e1 ne e2) && e1Val.contains(e2Val)
     case Concat(List(e1,e2)) =>
-      (eval(env,e1) != StringV(" ") && eval(env,e1) != StringV("")) && (eval(env,e2) != StringV(" ") && eval(env,e2) != StringV(""))
+      val e1Val = eval(env,e1)
+      val e2Val = eval(env,e2)
+      (e1Val != StringV(" ") && e1Val != StringV("")) && (e2Val != StringV(" ") && e2Val != StringV(""))
+    case IndexOf(List(e1,e2)) => e1 match {
+      case s: Str => s.s.trim.nonEmpty
+      case l: StringArr => l.children.nonEmpty
+      case _ => true
+    }
     case Index(List(e1,e2)) => e1 match {
       case s: Str => s.s.trim.nonEmpty && indices(eval(env,s),eval(env,e2))
-      case _ => {
+      case _ =>
         val res = indices(eval(env,e1),eval(env,e2))
-        //println(e1, e2, res)
         res
-      }
     }
     case Length(List(e)) => e match {
       case s: Str => s.s.trim.nonEmpty
@@ -283,6 +300,8 @@ object Arithmetic {
       length(eval(env,e))
     case Index(List(e1,e2)) =>
       index(eval(env,e1),eval(env,e2))
+    case IndexOf(List(e1,e2)) =>
+      indexOf(eval(env,e1),eval(env,e2))
     case Concat(List(e1,e2)) =>
       concat(eval(env,e1),eval(env,e2))
     case StrSubStr(List(e1,e2,e3)) =>
@@ -354,6 +373,8 @@ object Arithmetic {
       mkCode(env,e1) + ".split(" + mkCode(env,e2) + ")"
     case Index(List(e1,e2)) =>
       mkCode(env,e1) + "[" + mkCode(env,e2) + "]"
+    case IndexOf(List(e1,e2)) =>
+      mkCode(env,e1) + "index(" + mkCode(env,e2) + ")"
     case Concat(List(e1,e2)) =>
       "(" + mkCode(env,e1) + " + " + mkCode(env,e2) + ")"
     case StrReplace(List(e1,e2,e3)) =>
@@ -425,6 +446,11 @@ object Arithmetic {
       case (StringTy,IntTy) => StringTy
       case (StringArrTy,IntTy) => StringTy
       case (NumArrTy,IntTy) => IntTy
+      case (_,_) => ErrTy
+    }
+    case IndexOf(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
+      case (StringTy,StringTy) => IntTy
+      case (StringArrTy,StringTy) => IntTy
       case (_,_) => ErrTy
     }
     case Concat(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
@@ -516,6 +542,8 @@ object Arithmetic {
     case List(IntTy, IntTy) if e == "PLUS" => true
     case List(IntTy, IntTy) if e == "MINUS" => true
     case List(StringArrTy, IntTy) if e == "INDEX" => true
+    case List(StringTy, StringTy) if e == "INDEXOF" => true
+    case List(StringArrTy, StringTy) if e == "INDEXOF" => true
     case List(NumArrTy, IntTy) if e == "INDEX" => true
     case List(StringTy, IntTy) if e == "INDEX" => true
     case List(StringTy, StringTy) if e == "SPLIT" => true
@@ -550,6 +578,8 @@ object Arithmetic {
       astSize(e) + 1
     case Index(List(e1,e2)) =>
       astSize(e1) + astSize(e2) + 1
+    case IndexOf(List(e1,e2)) =>
+      astSize(e1) + astSize(e2) + 1
     case Concat(List(e1,e2)) =>
       astSize(e1) + astSize(e2) + 1
     case StrSplit(List(e1,e2)) =>
@@ -577,6 +607,7 @@ object Arithmetic {
     // String
     case "LENGTH"           => 1
     case "INDEX"            => 2
+    case "INDEXOF"          => 2
     case "CONCAT"           => 2
     case "SPLIT"            => 2
     case "LOWER"            => 1
@@ -612,6 +643,7 @@ object Arithmetic {
     // String
     case "LENGTH"     => Length(children)
     case "INDEX"      => Index(children)
+    case "INDEXOF"    => IndexOf(children)
     case "CONCAT"     => Concat(children)
     case "SPLIT"      => StrSplit(children)
     case "LOWER"      => Lower(children)

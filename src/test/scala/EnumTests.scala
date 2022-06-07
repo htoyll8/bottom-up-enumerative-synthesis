@@ -1,317 +1,132 @@
 package org.bottomup.arithmetic
-import Arithmetic.{Bool, ErrTy, Expr, Index, IntTy, Minus, Num, NumArr, NumV, Plus, Str, StrSplit, StrToList, StringArr, StringArrV, StringTy, StringV, Type, Value, Var, aryOf, canMake, eval, init, mkCode, tyOf, verify}
+import Arithmetic.{Bool, ErrTy, Expr, Index, IntTy, Minus, Num, NumArr, NumV, Plus, Str, StrSplit, StrToList, StringArr, StringArrV, StringTy, StringV, Type, Value, Var, aryOf, canMake, eval, init, mkCode, mkCodeMultipleCtx, tyOf, verify}
 
-import org.bottomup.arithmetic.Enumeration.closeFile
-import org.bottomup.arithmetic.JsonSerializer.ExprFormat
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 class EnumTests extends AnyFunSuite {
-  test("Find 5") {
-    val vocab = Vocab(List(
-      Var("fname"),
-      Str("")
-    ),
-      mutable.Map(
-        "LENGTH" -> 0.7,
-        "STRTOLIST" -> 0.65,
-        "ARRJOIN" -> 0.55,
-        "LOWER" -> 0.45,
-        //"UPPER" -> 0.45,
-    ))
-
-    val ctx = List(
-      Map(
-        Var("fname").x -> StringV("Tyler"),
-      )
-    )
-
-    val typeCtx = Map(
-      Var("fname").x -> StringTy,
-    )
-
-    val res = List(
-      NumV(5)
-    )
-
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 2, res)
-  }
-
-  test("Find 4 and 3") {
-    val vocab = Vocab(List(
-      Var("x"),
-      Var("sep"),
-      Num(0),
-      Num(1),
-      Num(2),
-      Num(3),
-      Num(4),
-    ),
-      mutable.Map(
-        "SPLIT" -> 0.4,
-        "LOWER" -> 0.15,
-        "UPPER" -> 0.15,
-        "CONCAT" -> 0.25,
-        "STRTOLIST" -> 0.35,
-        "LENGTH" -> 0.5,
-        "INDEX" -> 0.5,
-      )
-    )
-
-    val ctx = List(
-      Map(
-        Var("x").x -> StringV("Tour Lour Pour Kour"),
-        Var("sep").x -> StringV(" "),
-      ),
-      Map(
-        Var("x").x -> StringV("Bel Tel Fel"),
-        Var("sep").x -> StringV(" "),
-      ),
-    )
-
-    val res = List(
-      NumV(4),
-      NumV(3)
-    )
-
-    val typeCtx = Map(
-      Var("x").x -> StringTy,
-      Var("sep").x -> StringTy
-    )
-
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 1, res)
-  }
-
-  test("Find 4") {
-    val vocab = Vocab(List(
-      Var("x"),
-      Var("sep"),
-      Num(0),
-      Num(1),
-      Num(2),
-      Num(3),
-      Num(4),
-    ),
-      mutable.Map(
-        "SPLIT" -> 1,
-        "INDEX" -> 0,
-        "LOWER" -> 0,
-        "LENGTH" -> 0,
-        //"STRSUBSTR" -> 0,
-        //"UPPER" -> 0.15,
-        //"CONCAT" -> 0.25,
-//      "STRTOLIST" -> 0.35,
-//      "ARRJOIN" -> 0.3,
-      )
-    )
-
-    val ctx = List(
-      Map(
-        Var("x").x -> StringV("Tour Lour Pour Kour"),
-        Var("sep").x -> StringV(" "),
-      ),
-      Map(
-        Var("x").x -> StringV("Bell Tell Fell Sell"),
-        Var("sep").x -> StringV(" "),
-      ),
-    )
-
-    val res = List(
-      NumV(4),
-      NumV(4)
-    )
-
-    val typeCtx = Map(
-      Var("x").x -> StringTy,
-      Var("sep").x -> StringTy
-    )
-
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 1, res)
-  }
-
-  test("Find last name") {
-    val vocab = Vocab(List(
-      Var("name"),
-      Str(" "),
-      Num(0),
-      Num(1),
-    ),
-      mutable.Map(
-        "LENGTH" -> 0.7,
-        "SPLIT" -> 0.8,
-        "INDEX" -> 0.9,
-        "STRTOLIST" -> 0.65,
-        "ARRJOIN" -> 0.55,
-      ))
-
-    val ctx = List(
-      Map(
-        Var("name").x -> StringV("Tyler Hollo"),
-      )
-    )
-
-    val typeCtx = Map(
-      Var("name").x -> StringTy,
-    )
-
-    val res = List(
-      StringV("Hollo")
-    )
-
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 3, res)
-  }
-
-
-  test("Find date") {
-    val vocab = Vocab(List(
-      Var("date"),
-      Var("n"),
-      Str("-"),
-      Num(1)
-    ),
-      mutable.Map(
-        "LENGTH" -> 0.7,
-        "SPLIT" -> 0.8,
-        "INDEX" -> 0.9,
-        "MINUS" -> 0.55,
-        "STRTOLIST" -> 0.65,
-        "ARRJOIN" -> 0.55,
-      ))
-
-    val ctx = List(
-      Map(
-        Var("date").x -> StringV("1/17/16-1/18/17"),
-        Var("n").x -> NumV(1),
-      )
-    )
-
-    val typeCtx = Map(
-      Var("date").x -> StringTy,
-      Var("n").x -> IntTy,
-    )
-
-    val res = List(
-      StringV("1/17/16")
-    )
-
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 3, res)
-  }
-
-  test("Remove angles") {
+  test("First four chars") {
     val vocab = Vocab(List(
       Var("str"),
-      Str(""),
-      Str("<"),
-      Str(">"),
+      Var("sep"),
+      Num(0),
+      Num(4)
     ),
       mutable.Map(
-        //"CONCAT" -> 0.7,
-        "STRREPLACE" -> 0.8,
-      ))
+        "SPLIT" -> 0,
+        "STRSUBSTR" -> 0,
+        "LENGTH" -> 0,
+        "INDEX" -> 0
+      )
+    )
 
     val ctx = List(
       Map(
-        Var("str").x -> StringV("a < 4 and a > 0")
+        Var("str").x -> StringV("EC1A-1BB-AC12                         "),
+        Var("sep").x -> StringV("-")
       ),
       Map(
-        Var("str").x -> StringV("<open and <close>")
+        Var("str").x -> StringV("DN55-IPT-AB34"),
+        Var("sep").x -> StringV("-")
+      ),
+      Map(
+        Var("str").x -> StringV("ASCN-1ZZ-CD89"),
+        Var("sep").x -> StringV("-")
+      ),
+      Map(
+        Var("str").x -> StringV("STHL-1ZZ-P065"),
+        Var("sep").x -> StringV("-")
       )
     )
 
     val typeCtx = Map(
       Var("str").x -> StringTy,
+      Var("sep").x -> StringTy
     )
 
     val res = List(
-      StringV("a 4 and a 0"),
-      StringV("open and close")
+      StringV("EC1A"),
+      StringV("DN55"),
+      StringV("ASCN"),
+      StringV("STHL")
     )
 
     Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 4, res)
+    Enumeration.enumerate(vocab, typeCtx, ctx)
+    val matches = Enumeration.computeRes(res, ctx)
+    matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 
-  test("Phone number") {
+  test("Barred str --> List") {
     val vocab = Vocab(List(
-      Var("arg"),
-      Num(4),
-      Num(5)
+      Var("str"),
+      Var("sep"),
+      Num(1),
+      Num(2),
+      Str("@"),
+      Str("_"),
+      Str(" ")
     ),
       mutable.Map(
-        "CONCAT" -> 0.7,
-        "REPLACE" -> 0.8,
-      ))
+        "SPLIT" -> 0,
+        "STRREPLACE" -> 0,
+        "LENGTH" -> 0,
+        "INDEX" -> 0
+      )
+    )
 
     val ctx = List(
       Map(
-        Var("arg").x -> StringV("+95 310-537-401")
+        Var("str").x -> StringV("jim_brown@gmail.com,Jim,Brown,33,Seattle,WA"),
+        Var("sep").x -> StringV(",")
       ),
       Map(
-        Var("arg").x -> StringV("+72 001-050-856")
+        Var("str").x -> StringV("aya_shizuoka@aol.com,Aya,Shizuoka,27,Portland,OR"),
+        Var("sep").x -> StringV(",")
       ),
       Map(
-        Var("arg").x -> StringV("+106 769-858-438")
+        Var("str").x -> StringV("janice_drexel@harvard.edu,Janice,Drexel,41,Atla,WY"),
+        Var("sep").x -> StringV(",")
       )
     )
 
     val typeCtx = Map(
-      Var("arg").x -> StringTy,
+      Var("str").x -> StringTy,
+      Var("sep").x -> StringTy
     )
 
     val res = List(
-      StringV("310"),
-      StringV("001"),
-      StringV("769")
+      StringV("Jim Brown"),
+      StringV("Aya Shizuoka"),
+      StringV("Janice Drexel")
     )
 
     Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 3, res)
+    Enumeration.enumerate(vocab, typeCtx, ctx)
+    val matches = Enumeration.computeRes(res, ctx)
+    matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 
-  //TODO: count.
-  test("Newlines") {
+  test("Hockey player names") {
     val vocab = Vocab(List(
-      Var("arg"),
-      Str("\n"),
+      Str("m")
     ),
       mutable.Map(
-        "SPLIT" -> 0.7,
-        "LENGTH" -> 0.6
-      ))
-
-    val ctx = List(
-      Map(
-        Var("arg").x -> StringV("one")
-      ),
-      Map(
-        Var("arg").x -> StringV("one\\ntwo")
-      ),
-      Map(
-        Var("arg").x -> StringV("one\\ntwo\\nthree")
-      ),
-      Map(
-        Var("arg").x -> StringV("one\\ntwo\\nthree\\four")
+        "SPLIT" -> 0
       )
     )
 
-    val typeCtx = Map(
-      Var("arg").x -> StringTy,
+    val ctx = List(
+      Map(
+        Var("row") -> StringV("1,Women,Canada,Meghan,Agosta,148,5'7,2/12/87,Ruthven,Ont.,Forward"),
+        Var("sep") -> StringV(",")
+      )
     )
 
     val res = List(
-      NumV(0),
-      NumV(1),
-      NumV(2),
-      NumV(3),
+      StringV("M. Agosta")
     )
-
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx, 3, res)
   }
 }
