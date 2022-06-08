@@ -24,7 +24,7 @@ class EnumTests extends AnyFunSuite {
 
     val ctx = List(
       Map(
-        Var("str").x -> StringV("EC1A-1BB-AC12                         "),
+        Var("str").x -> StringV("EC1A-1BB-AC12"),
         Var("sep").x -> StringV("-")
       ),
       Map(
@@ -53,9 +53,10 @@ class EnumTests extends AnyFunSuite {
       StringV("STHL")
     )
 
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx)
-    val matches = Enumeration.computeRes(res, ctx)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, 5)
+    enumerator.enumerateLeafNodes()
+    enumerator.enumerate()
+    val matches = enumerator.computeRes(res)
     matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 
@@ -70,6 +71,7 @@ class EnumTests extends AnyFunSuite {
       Str(" ")
     ),
       mutable.Map(
+        "CONCAT" -> 0,
         "SPLIT" -> 0,
         "STRREPLACE" -> 0,
         "LENGTH" -> 0,
@@ -103,30 +105,46 @@ class EnumTests extends AnyFunSuite {
       StringV("Janice Drexel")
     )
 
-    Enumeration.enumerateLeafNodes(vocab, typeCtx, ctx)
-    Enumeration.enumerate(vocab, typeCtx, ctx)
-    val matches = Enumeration.computeRes(res, ctx)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, 5)
+    enumerator.enumerateLeafNodes()
+    enumerator.enumerate()
+    val matches = enumerator.computeRes(res)
     matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 
   test("Hockey player names") {
     val vocab = Vocab(List(
-      Str("m")
+      Var("row"),
+      Var("sep"),
+      Num(0),
+      Num(3)
     ),
       mutable.Map(
-        "SPLIT" -> 0
+        "SPLIT" -> 0,
+        "INDEX" -> 0
       )
     )
 
     val ctx = List(
       Map(
-        Var("row") -> StringV("1,Women,Canada,Meghan,Agosta,148,5'7,2/12/87,Ruthven,Ont.,Forward"),
-        Var("sep") -> StringV(",")
+        Var("row").x -> StringV("1,Women,Canada,Meghan,Agosta,148,5'7,2/12/87,Ruthven,Ont.,Forward"),
+        Var("sep").x -> StringV(",")
       )
     )
 
-    val res = List(
-      StringV("M. Agosta")
+    val typeCtx = Map(
+      Var("row").x -> StringTy,
+      Var("sep").x -> StringTy
     )
+
+    val res = List(
+      StringV("M")
+    )
+
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, 5)
+    enumerator.enumerateLeafNodes()
+    enumerator.enumerate()
+    val matches = enumerator.computeRes(res)
+    matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 }

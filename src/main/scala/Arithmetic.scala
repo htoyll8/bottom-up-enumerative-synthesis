@@ -598,6 +598,8 @@ object Arithmetic {
       astSize(e1) + astSize(e2) + 1
   }
 
+  def childrenAstSize(children: List[Expr]): Int = children.map(astSize).sum
+
   def aryOf(e: String): Int = e match {
     // Arithmetic
     case "PLUS"             => 2
