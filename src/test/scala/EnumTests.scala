@@ -53,11 +53,8 @@ class EnumTests extends AnyFunSuite {
       StringV("STHL")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, 5)
-    enumerator.enumerateLeafNodes()
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 5)
     enumerator.enumerate()
-    val matches = enumerator.computeRes(res)
-    matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 
   test("Barred str --> List") {
@@ -105,11 +102,8 @@ class EnumTests extends AnyFunSuite {
       StringV("Janice Drexel")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, 5)
-    enumerator.enumerateLeafNodes()
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 5)
     enumerator.enumerate()
-    val matches = enumerator.computeRes(res)
-    matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 
   test("Hockey player names") {
@@ -141,10 +135,7 @@ class EnumTests extends AnyFunSuite {
       StringV("M")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, 5)
-    enumerator.enumerateLeafNodes()
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 5)
     enumerator.enumerate()
-    val matches = enumerator.computeRes(res)
-    matches.foreach(e => println(mkCodeMultipleCtx(ctx, e)))
   }
 }

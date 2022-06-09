@@ -225,34 +225,34 @@ object Arithmetic {
 
   def verify(env: Env[Value], ctx: Env[Type], e: Expr): Boolean = e match {
     // Arithmetic
-    case Times(List(e1,e2)) => eval(env,e1) != NumV(0) || eval(env,e2) != NumV(0)
-    case Lower(List(e)) => eval(env,e) != StringV(" ") && eval(env,e) != StringV("")
-    case Upper(List(e)) => eval(env,e) != StringV(" ") && eval(env,e) != StringV("")
+    case Times(List(e1,e2)) => evalUtil(env,e1) != NumV(0) || evalUtil(env,e2) != NumV(0)
+    case Lower(List(e)) => evalUtil(env,e) != StringV(" ") && evalUtil(env,e) != StringV("")
+    case Upper(List(e)) => evalUtil(env,e) != StringV(" ") && evalUtil(env,e) != StringV("")
     case Minus(List(e1,e2)) => e1 ne e2
 
     // String
     case Lower(List(e)) => !e.isInstanceOf[Lower]
     case StrToList(List(e)) =>
-      val eVal = eval(env,e)
+      val eVal = evalUtil(env,e)
       eVal != StringV(" ") && eVal != StringV("")
     case StrReplace(List(e1,e2,e3)) =>
-      val e1Val = eval(env,e1).asInstanceOf[StringV].s
-      val e2Val = eval(env,e2).asInstanceOf[StringV].s
+      val e1Val = evalUtil(env,e1).asInstanceOf[StringV].s
+      val e2Val = evalUtil(env,e2).asInstanceOf[StringV].s
       (e2 ne e3) && e1Val.contains(e2Val)
     case StartsWith(List(e1,e2)) => e1 ne e2
     case EndsWith(List(e1,e2)) => e1 ne e2
     case StrSubStr(List(e1,e2,e3)) =>
-      val strLength = eval(env,e1).asInstanceOf[StringV].s.length
-      val startIdx = eval(env,e2).asInstanceOf[NumV].n
-      val endIdx = eval(env,e3).asInstanceOf[NumV].n
+      val strLength = evalUtil(env,e1).asInstanceOf[StringV].s.length
+      val startIdx = evalUtil(env,e2).asInstanceOf[NumV].n
+      val endIdx = evalUtil(env,e3).asInstanceOf[NumV].n
       (startIdx >= 0) && (startIdx < endIdx) && (endIdx <= strLength)
     case StrSplit(List(e1,e2)) =>
-      val e1Val = eval(env,e1).asInstanceOf[StringV].s
-      val e2Val = eval(env,e2).asInstanceOf[StringV].s
+      val e1Val = evalUtil(env,e1).asInstanceOf[StringV].s
+      val e2Val = evalUtil(env,e2).asInstanceOf[StringV].s
       (e1 ne e2) && e1Val.contains(e2Val)
     case Concat(List(e1,e2)) =>
-      val e1Val = eval(env,e1)
-      val e2Val = eval(env,e2)
+      val e1Val = evalUtil(env,e1)
+      val e2Val = evalUtil(env,e2)
       (e1Val != StringV(" ") && e1Val != StringV("")) && (e2Val != StringV(" ") && e2Val != StringV(""))
     case IndexOf(List(e1,e2)) => e1 match {
       case s: Str => s.s.trim.nonEmpty
@@ -260,9 +260,9 @@ object Arithmetic {
       case _ => true
     }
     case Index(List(e1,e2)) => e1 match {
-      case s: Str => s.s.trim.nonEmpty && indices(eval(env,s),eval(env,e2))
+      case s: Str => s.s.trim.nonEmpty && indices(evalUtil(env,s),evalUtil(env,e2))
       case _ =>
-        val res = indices(eval(env,e1),eval(env,e2))
+        val res = indices(evalUtil(env,e1),evalUtil(env,e2))
         res
     }
     case Length(List(e)) => e match {
@@ -282,74 +282,74 @@ object Arithmetic {
   // Section 2: Evaluation
   // ======================================================================
 
-  def evalMultipleCtx(envs: List[Env[Value]], e: Expr): List[Value] =  envs.map(env => eval(env, e))
+  def eval(envs: List[Env[Value]], e: Expr): List[Value] =  envs.map(env => evalUtil(env, e))
 
-  def eval(env: Env[Value], e: Expr): Value = e match {
+  def evalUtil(env: Env[Value], e: Expr): Value = e match {
     // Arithmetic
     case Num(n) => NumV(n)
     case Plus(List(e1: Expr, e2: Expr)) =>
-      add(eval(env, e1), eval(env, e2))
+      add(evalUtil(env, e1), evalUtil(env, e2))
     case Minus(List(e1: Expr, e2: Expr)) =>
-      subtract(eval(env, e1), eval(env, e2))
+      subtract(evalUtil(env, e1), evalUtil(env, e2))
     case Times(List(e1: Expr, e2: Expr)) =>
-      multiply(eval(env, e1), eval(env, e2))
+      multiply(evalUtil(env, e1), evalUtil(env, e2))
 
     // String
     case Str(s) => StringV(s)
     case Length(List(e)) =>
-      length(eval(env,e))
+      length(evalUtil(env,e))
     case Index(List(e1,e2)) =>
-      index(eval(env,e1),eval(env,e2))
+      index(evalUtil(env,e1),evalUtil(env,e2))
     case IndexOf(List(e1,e2)) =>
-      indexOf(eval(env,e1),eval(env,e2))
+      indexOf(evalUtil(env,e1),evalUtil(env,e2))
     case Concat(List(e1,e2)) =>
-      concat(eval(env,e1),eval(env,e2))
+      concat(evalUtil(env,e1),evalUtil(env,e2))
     case StrSubStr(List(e1,e2,e3)) =>
-      substring(eval(env,e1),eval(env,e2),eval(env,e3))
+      substring(evalUtil(env,e1),evalUtil(env,e2),evalUtil(env,e3))
     case StrSplit(List(e1,e2)) =>
-      split(eval(env,e1),eval(env,e2))
+      split(evalUtil(env,e1),evalUtil(env,e2))
     case StrReplace(List(e1,e2,e3)) =>
-      replaceStr(eval(env,e1),eval(env,e2),eval(env,e3))
+      replaceStr(evalUtil(env,e1),evalUtil(env,e2),evalUtil(env,e3))
     case StrToList(List(e1)) =>
-      strToList(eval(env,e1))
+      strToList(evalUtil(env,e1))
 
     // Booleans
     case Bool(b) => BoolV(b)
     case Eq(List(e1: Expr, e2: Expr)) =>
-      equal(eval(env, e1), eval(env, e2))
+      equal(evalUtil(env, e1), evalUtil(env, e2))
     case IsAlpha(List(e: Expr)) =>
-      isAlpha(eval(env,e))
+      isAlpha(evalUtil(env,e))
     case IsDigit(List(e: Expr)) =>
-      isDigit(eval(env,e))
+      isDigit(evalUtil(env,e))
     case Lower(List(e: Expr)) =>
-      lower(eval(env,e))
+      lower(evalUtil(env,e))
     case Upper(List(e: Expr)) =>
-      upper(eval(env,e))
+      upper(evalUtil(env,e))
     case StartsWith(List(e1: Expr, e2: Expr)) =>
-      startsWith(eval(env, e1), eval(env, e2))
+      startsWith(evalUtil(env, e1), evalUtil(env, e2))
     case EndsWith(List(e1: Expr, e2: Expr)) =>
-      endsWith(eval(env, e1), eval(env, e2))
+      endsWith(evalUtil(env, e1), evalUtil(env, e2))
     case IfThenElse(List(e: Expr, e1: Expr, e2: Expr)) =>
-      eval(env, e) match {
-        case BoolV(true) => eval(env, e1)
-        case BoolV(false) => eval(env, e2)
+      evalUtil(env, e) match {
+        case BoolV(true) => evalUtil(env, e1)
+        case BoolV(false) => evalUtil(env, e2)
         case _ => sys.error("conditional must evaluate to a boolean")
       }
 
     // List
     case NumArr(e: List[Expr]) =>
-      val children = e.map(c => eval(env,c))
+      val children = e.map(c => evalUtil(env,c))
       NumArrV(ListBuffer[Value]() ++= children)
     case ArrAppend(List(e: Expr, e2: Expr)) =>
-      append(eval(env,e), eval(env,e2))
+      append(evalUtil(env,e), evalUtil(env,e2))
     case ArrJoin(List(e: Expr, e2: Expr)) =>
-      arrJoin(eval(env,e), eval(env,e2))
+      arrJoin(evalUtil(env,e), evalUtil(env,e2))
 
     // Variables + let
     case Var(x) =>
       env(x)
     case Let(x, e1, e2) =>
-      eval(env + (x -> eval(env, e1)), e2)
+      evalUtil(env + (x -> evalUtil(env, e1)), e2)
   }
 
   def mkCodeMultipleCtx(envs: List[Env[Value]], e: Expr): String = mkCode(envs.head, e)
