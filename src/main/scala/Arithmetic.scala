@@ -538,30 +538,6 @@ object Arithmetic {
       }
   }
 
-  def canMake(e: String, childrenCandidatesTypes: List[Type]): Boolean = (childrenCandidatesTypes) match {
-    case List(IntTy, IntTy) if e == "PLUS" => true
-    case List(IntTy, IntTy) if e == "MINUS" => true
-    case List(StringArrTy, IntTy) if e == "INDEX" => true
-    case List(StringTy, StringTy) if e == "INDEXOF" => true
-    case List(StringArrTy, StringTy) if e == "INDEXOF" => true
-    case List(NumArrTy, IntTy) if e == "INDEX" => true
-    case List(StringTy, IntTy) if e == "INDEX" => true
-    case List(StringTy, StringTy) if e == "SPLIT" => true
-    case List(StringTy, StringTy) if e == "CONCAT" => true
-    case List(StringTy) if e == "LOWER" => true
-    case List(StringTy) if e == "UPPER" => true
-    case List(StringArrTy) if e == "LENGTH" => true
-    case List(NumArrTy) if e == "LENGTH" => true
-    case List(StringTy) if e == "LENGTH" => true
-    case List(StringTy) if e == "STRTOLIST" => true
-    case List(StringTy, StringArrTy) if e == "ARRJOIN" => true
-    case List(StringTy, StringTy) if e == "ARRJOIN" => true
-    case List(StringTy, CharArrTy) if e == "ARRJOIN" => true
-    case List(StringTy, StringTy, StringTy) if e == "STRREPLACE" => true
-    case List(StringTy, IntTy, IntTy) if e == "STRSUBSTR" => true
-    case _ => false
-  }
-
   def astSize(expr: Expr): Int = expr match {
     // Arithmetic
     case Num(_) => 1
@@ -599,6 +575,13 @@ object Arithmetic {
   }
 
   def childrenAstSize(children: List[Expr]): Int = children.map(astSize).sum
+
+  def childTypes(e: String): List[List[Type]] = e match {
+    // String
+    case "LENGTH"           => List(List(StringTy))
+    case "SPLIT"            => List(List(StringTy, IntTy), List(StringArrTy, IntTy))
+    case "INDEX"            => List(List(StringTy, IntTy), List(StringArrTy, IntTy))
+  }
 
   def aryOf(e: String): Int = e match {
     // Arithmetic
@@ -664,9 +647,6 @@ object Arithmetic {
     // List
     case "ARRAPPEND"  => ArrAppend(children)
     case "ARRJOIN"    => ArrJoin(children)
-
-    // Function
-    //case "LAMBDA"     => Lambda(children)
 
     // Conditional
     case "IFTHENELSE" => IfThenElse(children)

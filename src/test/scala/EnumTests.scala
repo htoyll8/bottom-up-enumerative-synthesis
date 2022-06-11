@@ -1,5 +1,5 @@
 package org.bottomup.arithmetic
-import Arithmetic.{Bool, ErrTy, Expr, Index, IntTy, Minus, Num, NumArr, NumV, Plus, Str, StrSplit, StrToList, StringArr, StringArrV, StringTy, StringV, Type, Value, Var, aryOf, canMake, eval, init, mkCode, mkCodeMultipleCtx, tyOf, verify}
+import Arithmetic.{Bool, ErrTy, Expr, Index, IntTy, Minus, Num, NumArr, NumV, Plus, Str, StrSplit, StrToList, StringArr, StringArrV, StringTy, StringV, Type, Value, Var, aryOf, eval, init, mkCode, mkCodeMultipleCtx, tyOf, verify}
 
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -55,8 +55,8 @@ class EnumTests extends AnyFunSuite {
 
     val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 5)
     enumerator.initProgramBank()
+    enumerator.enumerate()
     println(enumerator.valueSpace)
-    enumerator.newPrograms()
   }
 
   test("Barred str --> List") {
