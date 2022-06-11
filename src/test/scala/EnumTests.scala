@@ -54,7 +54,9 @@ class EnumTests extends AnyFunSuite {
     )
 
     val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 5)
-    enumerator.enumerate()
+    enumerator.initProgramBank()
+    println(enumerator.valueSpace)
+    enumerator.newPrograms()
   }
 
   test("Barred str --> List") {
