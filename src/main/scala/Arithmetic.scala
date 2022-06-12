@@ -221,61 +221,37 @@ object Arithmetic {
     }
   }
 
-  def verifyMultipleCtx(envs: List[Env[Value]], ctx: Env[Type], e: Expr) =  envs.forall(env => verify(env, ctx, e))
+  def verifyMultipleCtx(op: String,
+                        children: List[Expr],
+                        envs: List[Env[Value]],
+                        typeCtx: Env[Type]): Boolean =
+    envs.forall(env => verify(op, children, env, typeCtx))
 
-  def verify(env: Env[Value], ctx: Env[Type], e: Expr): Boolean = e match {
-    // Arithmetic
-    case Times(List(e1,e2)) => evalUtil(env,e1) != NumV(0) || evalUtil(env,e2) != NumV(0)
-    case Lower(List(e)) => evalUtil(env,e) != StringV(" ") && evalUtil(env,e) != StringV("")
-    case Upper(List(e)) => evalUtil(env,e) != StringV(" ") && evalUtil(env,e) != StringV("")
-    case Minus(List(e1,e2)) => e1 ne e2
-
+  def verify(op: String, children: List[Expr], env: Env[Value], typeCtx: Env[Type]): Boolean = op match {
     // String
-    case Lower(List(e)) => !e.isInstanceOf[Lower]
-    case StrToList(List(e)) =>
-      val eVal = evalUtil(env,e)
-      eVal != StringV(" ") && eVal != StringV("")
-    case StrReplace(List(e1,e2,e3)) =>
-      val e1Val = evalUtil(env,e1).asInstanceOf[StringV].s
-      val e2Val = evalUtil(env,e2).asInstanceOf[StringV].s
-      (e2 ne e3) && e1Val.contains(e2Val)
-    case StartsWith(List(e1,e2)) => e1 ne e2
-    case EndsWith(List(e1,e2)) => e1 ne e2
-    case StrSubStr(List(e1,e2,e3)) =>
-      val strLength = evalUtil(env,e1).asInstanceOf[StringV].s.length
-      val startIdx = evalUtil(env,e2).asInstanceOf[NumV].n
-      val endIdx = evalUtil(env,e3).asInstanceOf[NumV].n
+    case "LENGTH"           =>
+      val toLength = children.head
+      tyOf(typeCtx, toLength) == StringTy
+    case "SPLIT"            =>
+      val toSplit = children.head
+      val sep = children.last
+        (toSplit ne sep) &&
+          toSplit.isInstanceOf[Str] &&
+          sep.isInstanceOf[Str] &&
+        (evalUtil(env,toSplit).asInstanceOf[StringV].s).contains(evalUtil(env,sep).asInstanceOf[StringV].s)
+    case "INDEX"            =>
+      val toIndex = children.head
+      val sep = children.last
+      toIndex match {
+        case s: Str => s.s.trim.nonEmpty && indices(evalUtil(env,s),evalUtil(env,sep))
+        case l: StringArr => indices(evalUtil(env,l),evalUtil(env,sep))
+        case _ => false
+      }
+    case "STRSUBSTR"        =>
+      val strLength = evalUtil(env,children.head).asInstanceOf[StringV].s.length
+      val startIdx = evalUtil(env,children(1)).asInstanceOf[NumV].n
+      val endIdx = evalUtil(env,children.last).asInstanceOf[NumV].n
       (startIdx >= 0) && (startIdx < endIdx) && (endIdx <= strLength)
-    case StrSplit(List(e1,e2)) =>
-      val e1Val = evalUtil(env,e1).asInstanceOf[StringV].s
-      val e2Val = evalUtil(env,e2).asInstanceOf[StringV].s
-      (e1 ne e2) && e1Val.contains(e2Val)
-    case Concat(List(e1,e2)) =>
-      val e1Val = evalUtil(env,e1)
-      val e2Val = evalUtil(env,e2)
-      (e1Val != StringV(" ") && e1Val != StringV("")) && (e2Val != StringV(" ") && e2Val != StringV(""))
-    case IndexOf(List(e1,e2)) => e1 match {
-      case s: Str => s.s.trim.nonEmpty
-      case l: StringArr => l.children.nonEmpty
-      case _ => true
-    }
-    case Index(List(e1,e2)) => e1 match {
-      case s: Str => s.s.trim.nonEmpty && indices(evalUtil(env,s),evalUtil(env,e2))
-      case _ =>
-        val res = indices(evalUtil(env,e1),evalUtil(env,e2))
-        res
-    }
-    case Length(List(e)) => e match {
-      case s: Str => s.s.trim.nonEmpty
-      case e: Expr => tyOf(ctx, e) == StringTy || tyOf(ctx, e) == StringArrTy
-      case _ => false
-    }
-
-    // List
-    case ArrJoin(List(e1, e2)) => (e1 ne e2)
-
-    // Default
-    case _ => true
   }
 
   // ======================================================================

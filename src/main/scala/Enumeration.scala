@@ -43,6 +43,12 @@ class Enumeration(vocab: Vocab,
     currLevel += 1
   }
 
+  /** Add element to the value sapce.  */
+  def updateValueSpace(prog: Expr): Unit =  {
+    valueSpace.getOrElseUpdate(currLevel, ArrayBuffer[Expr]())
+    valueSpace(currLevel) += prog
+  }
+
   /** Cartesian product.  */
   def cartesianProduct(x: List[List[Expr]]): List[List[Expr]] = x match {
     case Nil    => List(Nil)
@@ -130,6 +136,9 @@ class Enumeration(vocab: Vocab,
           // Continue.
         } else if (isPartiallyCorrect(e)) {
           // Update rule's probability.
+        } else {
+          // Add to value space.
+          updateValueSpace(prog)
         }
         currLevelDiscovered += e
       }
@@ -157,8 +166,12 @@ class Enumeration(vocab: Vocab,
           val childrenCandidates: List[List[Expr]] = for ((cost, aType) <- costZipArity) yield {
               childrenLevels.filter(expr => costMap(expr) == cost && typecheck(expr) == aType).toList
           }
-          if (childrenCandidates.forall(_.nonEmpty)) childrenCandidates.foreach(println)
-          println
+          // Initialize AST based on valid parameters.
+          if (childrenCandidates.forall(_.nonEmpty)) {
+            val childrenCombos = cartesianProduct(childrenCandidates)
+            val childrenParams = childrenCombos.filter(children => verifyMultipleCtx(opName, children, ctx, typeCtx))
+            newProgs ++= childrenParams.map(c => init(opName, c))
+          }
         }
       }
     }
