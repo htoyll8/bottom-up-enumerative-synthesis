@@ -579,7 +579,8 @@ object Arithmetic {
   def childTypes(e: String): List[List[Type]] = e match {
     // String
     case "LENGTH"           => List(List(StringTy))
-    case "SPLIT"            => List(List(StringTy, IntTy), List(StringArrTy, IntTy))
+    case "SPLIT"            => List(List(StringTy, StringTy))
+    case "STRSUBSTR"        => List(List(StringTy, IntTy, IntTy))
     case "INDEX"            => List(List(StringTy, IntTy), List(StringArrTy, IntTy))
   }
 

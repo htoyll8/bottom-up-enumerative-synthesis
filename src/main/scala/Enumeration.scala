@@ -151,22 +151,17 @@ class Enumeration(vocab: Vocab,
         // Create all permutations of subexpressions.
         val costComboCandidates = costCombos.filter(_.length == opArity)
         for (cost <- costComboCandidates) {
-          val childrenLevel = currLevel - 1
+          val childrenLevels = (1 until currLevel - 1).flatMap(level => valueSpace(level))
           val childrenTypes = childTypes(opName)
-          val costZipArity = childrenTypes.map(types => cost zip types)
-          val childrenCandidates = costZipArity.map(t => t.map(i => valueSpace(childrenLevel)
-            .filter(expr => costMap(expr) == i._1 && typecheck(expr) == i._2)))
-            .filter(lst => lst.forall(l => l.nonEmpty))
-            .head.map(_.toList)
-          val children = cartesianProduct(childrenCandidates)
-          for (params <- children) {
-            println("Params: " + params)
-            newProgs += init(opName, params)
+          val costZipArity = childrenTypes.map(types => cost zip types).head
+          val childrenCandidates: List[List[Expr]] = for ((cost, aType) <- costZipArity) yield {
+              childrenLevels.filter(expr => costMap(expr) == cost && typecheck(expr) == aType).toList
           }
+          if (childrenCandidates.forall(_.nonEmpty)) childrenCandidates.foreach(println)
+          println
         }
       }
     }
-    println(newProgs)
     newProgs.iterator
   }
 }
