@@ -1,7 +1,6 @@
 package org.bottomup.arithmetic
 
 import Arithmetic.{Env, ErrTy, Expr, Index, Length, Num, NumV, Str, StrSplit, StrSubStr, Type, Value, Var, Variable, aryOf, astSize, childTypes, childrenAstSize, eval, init, mkCode, mkCodeMultipleCtx, tyOf, verify, verifyMultipleCtx}
-
 import scala.Console.in
 import scala.collection.mutable
 import scala.collection.mutable._
@@ -12,6 +11,8 @@ class Enumeration(vocab: Vocab,
                   ctx: List[Env[Value]],
                   res: List[Value],
                   LIM: Int) {
+
+  val LOG = false
 
   /** The current level. */
   var currLevel: Int = 1
@@ -37,6 +38,9 @@ class Enumeration(vocab: Vocab,
   /** Determines whether the program satisfies a subset of the examples. */
   def isPartiallyCorrect(evalRes: List[Value]): Boolean = (evalRes zip res).exists(l => l._1 == l._2)
 
+  /** Initialize level.  */
+  def initLevel(): Unit =  valueSpace(currLevel) = ArrayBuffer[Expr]() ++ vocab.leafNodes
+
   /** Add leaf nodes to the initial level of program bank.  */
   def initProgramBank(): Unit =  {
     valueSpace(currLevel) = ArrayBuffer[Expr]() ++ vocab.leafNodes
@@ -45,7 +49,6 @@ class Enumeration(vocab: Vocab,
 
   /** Add element to the value sapce.  */
   def updateValueSpace(prog: Expr): Unit =  {
-    valueSpace.getOrElseUpdate(currLevel, ArrayBuffer[Expr]())
     valueSpace(currLevel) += prog
   }
 
@@ -55,15 +58,9 @@ class Enumeration(vocab: Vocab,
     case h :: _ => h.flatMap(i => cartesianProduct(x.tail).map(i :: _))
   }
 
-  /** The rounded negative log of the probability */
-  def costMap(expr: Expr): Int = expr match {
-    case _: Num => 1
-    case _: Str => 1
-    case _: Var => 1
-    case _: Index => 1
-    case _: Length => 1
-    case _: StrSplit => 1
-    case _: StrSubStr => 1
+  /** Retrieve all programs that satisfy specification.  */
+  def computeResults(): List[Expr] = {
+    valueSpace.flatMap(_._2).filter(e => eval(ctx,e) == res).toList
   }
 
   /** Create all permutations of subexpression costs. */
@@ -72,7 +69,7 @@ class Enumeration(vocab: Vocab,
     val target = currLevel
     val A = ListBuffer.range(1, currLevel)
     val local = ListBuffer[Int]()
-    val foundCombos = mutable.Set[List[Int]]()
+    val foundCombos = mutable.Set[List[Int]](List(currLevel))
     costCombinationsUtil(A, sum, target, local, foundCombos)
   }
 
@@ -125,22 +122,32 @@ class Enumeration(vocab: Vocab,
 
   def enumerate(): Unit = {
     while (currLevel <= LIM) {
+      println("Level: " + currLevel)
+      initLevel()
       val candidates = newPrograms()
       while (candidates.hasNext) {
-        val prog = candidates.next()
-        // Evaluate program.
-        val e: List[Value] = eval(ctx,prog)
-        if (e == res) {
-          // Add program to solution bank.
-        } else if (isDiscovered(prog)) {
-          // Continue.
-        } else if (isPartiallyCorrect(e)) {
-          // Update rule's probability.
-        } else {
+        breakable {
+          val prog = candidates.next()
+          // Evaluate program.
+          val e: List[Value] = eval(ctx,prog)
+          if (e == res) {
+            // Add program to solution bank.
+          } else if (isDiscovered(prog)) {
+            // Continue.
+            break()
+          } else if (isPartiallyCorrect(e)) {
+            // Update rule's probability.
+          }
+
+          if (LOG) {
+            println("Updating: " + currLevel + " with " + prog)
+          }
+
           // Add to value space.
           updateValueSpace(prog)
+          currLevelDiscovered += e
         }
-        currLevelDiscovered += e
+
       }
       currLevel += 1
     }
@@ -159,22 +166,52 @@ class Enumeration(vocab: Vocab,
       } else if (opCost < currLevel && opArity > 0) {
         // Create all permutations of subexpressions.
         val costComboCandidates = costCombos.filter(_.length == opArity)
+
+        if (LOG) {
+          println(op._1)
+          println(costComboCandidates)
+        }
+
         for (cost <- costComboCandidates) {
-          val childrenLevels = (1 until currLevel - 1).flatMap(level => valueSpace(level))
+          val childrenLevels = (1 until currLevel).flatMap(level => valueSpace(level))
           val childrenTypes = childTypes(opName)
           val costZipArity = childrenTypes.map(types => cost zip types).head
-          val childrenCandidates: List[List[Expr]] = for ((cost, aType) <- costZipArity) yield {
-              childrenLevels.filter(expr => costMap(expr) == cost && typecheck(expr) == aType).toList
+          val childrenCandidates: ListBuffer[List[Expr]] = ListBuffer[List[Expr]]()
+          for ((cost, aType) <- costZipArity) {
+              childrenCandidates += childrenLevels.filter(expr => astSize(expr) == cost && typecheck(expr) == aType).toList
           }
+
+          if (LOG) {
+            println("CostZipArity: " + costZipArity)
+            println("Current level: " + currLevel)
+            println("Children: " + childrenLevels)
+            println("Children candidates for " + opName + " " + childrenCandidates)
+          }
+
           // Initialize AST based on valid parameters.
           if (childrenCandidates.forall(_.nonEmpty)) {
-            val childrenCombos = cartesianProduct(childrenCandidates)
-            val childrenParams = childrenCombos.filter(children => verifyMultipleCtx(opName, children, ctx, typeCtx))
+            val childrenCombos = cartesianProduct(childrenCandidates.toList)
+            val childrenParams = childrenCombos.filter(children => {
+              val res = verifyMultipleCtx(opName, children, ctx, typeCtx)
+
+              if (LOG) {
+                println("Pair: " + children)
+                println("Res: " + res + "\n")
+              }
+
+              res
+            })
             newProgs ++= childrenParams.map(c => init(opName, c))
           }
         }
       }
     }
+
+    if (LOG) {
+      println("Cur level: " + currLevel)
+      newProgs.foreach(println)
+    }
+
     newProgs.iterator
   }
 }

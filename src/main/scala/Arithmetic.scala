@@ -1,6 +1,6 @@
 package org.bottomup.arithmetic
 
-import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, indexOf, isAlpha, isDigit, length, lower, multiply, replaceStr, split, startsWith, strToList, substring, subtract, upper}
+import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, indexOf, isAlpha, isDigit, length, lower, multiply, replaceStr, split, startsWith, strToList, substring, subtract, title, upper}
 
 import org.bottomup.arithmetic.Arithmetic.Verifier.indices
 
@@ -33,10 +33,13 @@ object Arithmetic {
   case class Str(s: String) extends Expr
   case class Length(children: List[Expr]) extends Expr
   case class Index(children: List[Expr]) extends Expr
+  case class StrIndex(children: List[Expr]) extends Expr
+  case class ArrIndex(children: List[Expr]) extends Expr
   case class IndexOf(children: List[Expr]) extends Expr
   case class Concat(children: List[Expr]) extends Expr
   case class Lower(children: List[Expr]) extends Expr
   case class Upper(children: List[Expr]) extends Expr
+  case class Title(children: List[Expr]) extends Expr
   case class StrSubStr(children: List[Expr]) extends Expr
   case class StrSplit(children: List[Expr]) extends Expr
   case class StrReplace(children: List[Expr]) extends Expr
@@ -149,7 +152,6 @@ object Arithmetic {
       case _ => sys.error("Argument to concat are not strings.")
     }
 
-
     def split(v1: Value, v2: Value): Value = (v1, v2) match {
       case (StringV(v1), StringV(v2)) => StringArrV(ListBuffer[String]() ++= v1.split(v2))
       case _ => sys.error("Argument to concat are not strings.")
@@ -195,6 +197,11 @@ object Arithmetic {
       case _ => sys.error("Argument to concat are not strings.")
     }
 
+    def title(v1: Value): Value = v1 match {
+      case StringV(v1) => StringV(v1.capitalize)
+      case _ => sys.error("Argument to concat are not strings.")
+    }
+
     def append(v1: Value, v2: Value): Value = (v1, v2) match {
       case (StringArrV(v1), StringV(v2)) => StringArrV(v1 :+ v2)
       case _ => sys.error("Argument to concat are not strings.")
@@ -232,26 +239,49 @@ object Arithmetic {
     case "LENGTH"           =>
       val toLength = children.head
       tyOf(typeCtx, toLength) == StringTy
+    case "TITLE"           =>
+      val toTitle = children.head
+      toTitle match {
+        case s: Str => s.s.trim.nonEmpty
+        case _ => true
+      }
+    case "LOWER"           =>
+      val toLower = children.head
+      toLower match {
+        case s: Str => s.s.trim.nonEmpty
+        case l: Lower => false
+        case _ => true
+      }
+    case "CONCAT"           =>
+      evalUtil(env,children.head).asInstanceOf[StringV].s.nonEmpty &&
+        evalUtil(env,children.last).asInstanceOf[StringV].s.nonEmpty
     case "SPLIT"            =>
       val toSplit = children.head
       val sep = children.last
         (toSplit ne sep) &&
-          toSplit.isInstanceOf[Str] &&
-          sep.isInstanceOf[Str] &&
+          tyOf(typeCtx, toSplit) == StringTy &&
+          tyOf(typeCtx, sep) == StringTy &&
         (evalUtil(env,toSplit).asInstanceOf[StringV].s).contains(evalUtil(env,sep).asInstanceOf[StringV].s)
-    case "INDEX"            =>
+    case "STRINDEX"            =>
       val toIndex = children.head
       val sep = children.last
       toIndex match {
         case s: Str => s.s.trim.nonEmpty && indices(evalUtil(env,s),evalUtil(env,sep))
-        case l: StringArr => indices(evalUtil(env,l),evalUtil(env,sep))
-        case _ => false
+        case _ => indices(evalUtil(env,toIndex),evalUtil(env,sep))
       }
+    case "ARRINDEX"            =>
+      val toIndex = children.head
+      val sep = children.last
+      indices(evalUtil(env,toIndex),evalUtil(env,sep))
     case "STRSUBSTR"        =>
       val strLength = evalUtil(env,children.head).asInstanceOf[StringV].s.length
       val startIdx = evalUtil(env,children(1)).asInstanceOf[NumV].n
       val endIdx = evalUtil(env,children.last).asInstanceOf[NumV].n
       (startIdx >= 0) && (startIdx < endIdx) && (endIdx <= strLength)
+    case "STRREPLACE"        =>
+      val Str = evalUtil(env,children.head).asInstanceOf[StringV].s
+      val toBeReplaced = evalUtil(env,children(1)).asInstanceOf[StringV].s
+      (children(1) ne children.last) && Str.contains(toBeReplaced)
   }
 
   // ======================================================================
@@ -275,6 +305,10 @@ object Arithmetic {
     case Length(List(e)) =>
       length(evalUtil(env,e))
     case Index(List(e1,e2)) =>
+      index(evalUtil(env,e1),evalUtil(env,e2))
+    case StrIndex(List(e1,e2)) =>
+      index(evalUtil(env,e1),evalUtil(env,e2))
+    case ArrIndex(List(e1,e2)) =>
       index(evalUtil(env,e1),evalUtil(env,e2))
     case IndexOf(List(e1,e2)) =>
       indexOf(evalUtil(env,e1),evalUtil(env,e2))
@@ -301,6 +335,8 @@ object Arithmetic {
       lower(evalUtil(env,e))
     case Upper(List(e: Expr)) =>
       upper(evalUtil(env,e))
+    case Title(List(e: Expr)) =>
+      title(evalUtil(env,e))
     case StartsWith(List(e1: Expr, e2: Expr)) =>
       startsWith(evalUtil(env, e1), evalUtil(env, e2))
     case EndsWith(List(e1: Expr, e2: Expr)) =>
@@ -349,6 +385,10 @@ object Arithmetic {
       mkCode(env,e1) + ".split(" + mkCode(env,e2) + ")"
     case Index(List(e1,e2)) =>
       mkCode(env,e1) + "[" + mkCode(env,e2) + "]"
+    case StrIndex(List(e1,e2)) =>
+      mkCode(env,e1) + "[" + mkCode(env,e2) + "]"
+    case ArrIndex(List(e1,e2)) =>
+      mkCode(env,e1) + "[" + mkCode(env,e2) + "]"
     case IndexOf(List(e1,e2)) =>
       mkCode(env,e1) + "index(" + mkCode(env,e2) + ")"
     case Concat(List(e1,e2)) =>
@@ -370,6 +410,8 @@ object Arithmetic {
       mkCode(env,e) + ".lower()"
     case Upper(List(e: Expr)) =>
       mkCode(env,e) + ".upper()"
+    case Title(List(e: Expr)) =>
+      mkCode(env,e) + ".title()"
     case StartsWith(List(e1: Expr, e2: Expr)) =>
       mkCode(env, e1) + ".startswith(" + mkCode(env, e2) + ")"
     case EndsWith(List(e1: Expr, e2: Expr)) =>
@@ -417,6 +459,15 @@ object Arithmetic {
       case StringArrTy => IntTy
       case NumArrTy => IntTy
       case _ => ErrTy
+    }
+    case StrIndex(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
+      case (StringTy,IntTy) => StringTy
+      case (_,_) => ErrTy
+    }
+    case ArrIndex(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
+      case (StringArrTy,IntTy) => StringTy
+      case (NumArrTy,IntTy) => IntTy
+      case (_,_) => ErrTy
     }
     case Index(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
       case (StringTy,IntTy) => StringTy
@@ -494,6 +545,10 @@ object Arithmetic {
       case (StringTy) => StringTy
       case (_) => ErrTy
     }
+    case Title(List(e: Expr)) => tyOf(ctx,e) match {
+      case (StringTy) => StringTy
+      case (_) => ErrTy
+    }
     case StartsWith(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
       case (StringTy,StringTy) => BoolTy
       case (_,_) => ErrTy
@@ -526,9 +581,15 @@ object Arithmetic {
       astSize(e) + 1
     case Upper(List(e)) =>
       astSize(e) + 1
+    case Title(List(e)) =>
+      astSize(e) + 1
     case Length(List(e)) =>
       astSize(e) + 1
     case Index(List(e1,e2)) =>
+      astSize(e1) + astSize(e2) + 1
+    case StrIndex(List(e1,e2)) =>
+      astSize(e1) + astSize(e2) + 1
+    case ArrIndex(List(e1,e2)) =>
       astSize(e1) + astSize(e2) + 1
     case IndexOf(List(e1,e2)) =>
       astSize(e1) + astSize(e2) + 1
@@ -555,9 +616,16 @@ object Arithmetic {
   def childTypes(e: String): List[List[Type]] = e match {
     // String
     case "LENGTH"           => List(List(StringTy))
+    case "LOWER"            => List(List(StringTy))
+    case "TITLE"            => List(List(StringTy))
     case "SPLIT"            => List(List(StringTy, StringTy))
+    case "CONCAT"           => List(List(StringTy, StringTy))
     case "STRSUBSTR"        => List(List(StringTy, IntTy, IntTy))
-    case "INDEX"            => List(List(StringTy, IntTy), List(StringArrTy, IntTy))
+    case "STRREPLACE"       => List(List(StringTy, StringTy, StringTy))
+    case "STRINDEX"         => List(List(StringTy, IntTy))
+
+    // List
+    case "ARRINDEX"         => List(List(StringArrTy, IntTy))
   }
 
   def aryOf(e: String): Int = e match {
@@ -569,11 +637,13 @@ object Arithmetic {
     // String
     case "LENGTH"           => 1
     case "INDEX"            => 2
+    case "STRINDEX"         => 2
     case "INDEXOF"          => 2
     case "CONCAT"           => 2
     case "SPLIT"            => 2
     case "LOWER"            => 1
     case "UPPER"            => 1
+    case "TITLE"            => 1
     case "STRSUBSTR"        => 3
     case "STRREPLACE"       => 3
     case "STRTOLIST"        => 1
@@ -586,6 +656,7 @@ object Arithmetic {
     case "ISDIGIT"          => 1
 
     // List
+    case "ARRINDEX"         => 2
     case "ARRAPPEND"       => 2
     case "ARRJOIN"         => 2
 
@@ -605,11 +676,13 @@ object Arithmetic {
     // String
     case "LENGTH"     => Length(children)
     case "INDEX"      => Index(children)
+    case "STRINDEX"   => StrIndex(children)
     case "INDEXOF"    => IndexOf(children)
     case "CONCAT"     => Concat(children)
     case "SPLIT"      => StrSplit(children)
     case "LOWER"      => Lower(children)
     case "UPPER"      => Upper(children)
+    case "TITLE"      => Title(children)
     case "STRSUBSTR"  => StrSubStr(children)
     case "STRREPLACE" => StrReplace(children)
     case "STRTOLIST"  => StrToList(children)
@@ -622,6 +695,7 @@ object Arithmetic {
     case "ISDIGIT"    => IsDigit(children)
 
     // List
+    case "ARRINDEX"   => ArrIndex(children)
     case "ARRAPPEND"  => ArrAppend(children)
     case "ARRJOIN"    => ArrJoin(children)
 
