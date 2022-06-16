@@ -138,10 +138,6 @@ class Enumeration(vocab: Vocab,
             // Update rule's probability.
           }
 
-          if (LOG) {
-            println("Updating: " + currLevel + " with " + prog)
-          }
-
           // Add to value space.
           updateValueSpace(prog)
           currLevelDiscovered += e
@@ -165,12 +161,6 @@ class Enumeration(vocab: Vocab,
       } else if (opCost < currLevel && opArity > 0) {
         // Create all permutations of subexpressions.
         val costComboCandidates = costCombos.filter(_.length == opArity)
-
-        if (LOG) {
-          println(op._1)
-          println(costComboCandidates)
-        }
-
         for (cost <- costComboCandidates) {
           val childrenLevels = (1 until currLevel).flatMap(level => valueSpace(level))
           val childrenTypes = childTypes(opName)
@@ -179,25 +169,11 @@ class Enumeration(vocab: Vocab,
           for ((cost, aType) <- costZipArity) {
               childrenCandidates += childrenLevels.filter(expr => astSize(expr) == cost && typecheck(expr) == aType).toList
           }
-
-          if (LOG) {
-            println("CostZipArity: " + costZipArity)
-            println("Current level: " + currLevel)
-            println("Children: " + childrenLevels)
-            println("Children candidates for " + opName + " " + childrenCandidates)
-          }
-
           // Initialize AST based on valid parameters.
           if (childrenCandidates.forall(_.nonEmpty)) {
             val childrenCombos = cartesianProduct(childrenCandidates.toList)
             val childrenParams = childrenCombos.filter(children => {
               val res = verifyMultipleCtx(opName, children, ctx, typeCtx)
-
-              if (LOG) {
-                println("Pair: " + children)
-                println("Res: " + res + "\n")
-              }
-
               res
             })
             newProgs ++= childrenParams.map(c => init(opName, c))
@@ -205,12 +181,6 @@ class Enumeration(vocab: Vocab,
         }
       }
     }
-
-    if (LOG) {
-      println("Cur level: " + currLevel)
-      newProgs.foreach(println)
-    }
-
     newProgs.iterator
   }
 }
