@@ -3,6 +3,7 @@ import Arithmetic.{Bool, Concat, ErrTy, Expr, Index, IntTy, Minus, Num, NumArr, 
 
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.io.{File, PrintWriter}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -12,6 +13,8 @@ class EnumTests extends AnyFunSuite {
       Var("str"),
       Var("sep"),
       Num(0),
+      Num(1),
+      Num(2),
       Num(4)
     ),
       mutable.Map(
@@ -54,67 +57,15 @@ class EnumTests extends AnyFunSuite {
       StringV("STHL")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 14)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 10)
     enumerator.initProgramBank()
     enumerator.enumerate()
-    enumerator.computeResults().foreach(e => println(mkCodeMultipleCtx(ctx, e)))
-  }
 
-  test("Barred str --> List") {
-    val vocab = Vocab(List(
-      Var("str"),
-      //Var("sep"),
-      Num(0),
-      Num(1),
-      Num(2),
-      Num(8),
-      Str(" "),
-      Str("@")
-    ),
-      mutable.Map(
-        "CONCAT" -> 0,
-        "SPLIT" -> 0,
-        "STRSUBSTR" -> 0,
-        "STRREPLACE" -> 0,
-        "LENGTH" -> 0,
-        "TITLE" -> 0,
-        "STRINDEX" -> 0,
-        "ARRINDEX" -> 0
-      )
-    )
-
-    val ctx = List(
-      Map(
-        Var("str").x -> StringArrV(ListBuffer("jim_brown@gmail.com","Jim","Brown","33","Seattle,WA")),
-        Var("sep").x -> StringV(",")
-      ),
-      Map(
-        Var("str").x -> StringArrV(ListBuffer("aya_shizuoka@aol.com","Aya","Shizuoka","27","Portland,OR")),
-        Var("sep").x -> StringV(",")
-      ),
-      Map(
-        Var("str").x -> StringArrV(ListBuffer("janice_drexel@harvard.edu","Janice","Drexel","41","Atla,WY")),
-        Var("sep").x -> StringV(",")
-      )
-    )
-
-    val typeCtx = Map(
-      Var("str").x -> StringArrTy,
-      Var("sep").x -> StringTy
-    )
-
-    val res = List(
-      StringV("Jim Brown"),
-      StringV("Aya Shizuoka"),
-      StringV("Janice Drexel")
-    )
-
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 13)
-    enumerator.initProgramBank()
-    enumerator.enumerate()
-    enumerator.valueSpace.flatMap(_._2).foreach(e => println(eval(ctx, e)))
-    //enumerator.valueSpace.flatMap(_._2).foreach(e => println(mkCodeMultipleCtx(ctx, e)))
-    //enumerator.computeResults().foreach(e => println(mkCodeMultipleCtx(ctx, e)))
+    // Printer set up.
+    val writer = new PrintWriter(new File("first-four-char-outputFile.txt"))  //specify the file path
+    val results = enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e)).toSet
+    results.foreach(writer.println)
+    writer.close()
   }
 
   test("Shorten thousand dollars") {
@@ -123,12 +74,16 @@ class EnumTests extends AnyFunSuite {
       Var("sep"),
       Str("k"),
       Num(0),
-      Num(3)
+      Num(2)
     ),
       mutable.Map(
         "SPLIT" -> 0,
-        "INDEX" -> 0,
+        "STRINDEX" -> 0,
+        "ARRINDEX" -> 0,
         "CONCAT" -> 0,
+        "STRSUBSTR" -> 0,
+        "STRREPLACE" -> 0,
+        "LENGTH" -> 0,
       )
     )
 
@@ -148,8 +103,15 @@ class EnumTests extends AnyFunSuite {
       StringV("80k")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 5)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 9)
+    enumerator.initProgramBank()
     enumerator.enumerate()
+
+    // Printer set up.
+    val writer = new PrintWriter(new File("shorten-thousand-outputFile.txt"))  //specify the file path
+    val results = enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e)).toSet
+    results.foreach(writer.println)
+    writer.close()
   }
 
   test("Email name") {
@@ -193,10 +155,14 @@ class EnumTests extends AnyFunSuite {
       StringV("tpayne")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 13)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 11)
     enumerator.initProgramBank()
     enumerator.enumerate()
-    enumerator.valueSpace.flatMap(_._2).foreach(e => println(mkCodeMultipleCtx(ctx, e)))
-    enumerator.computeResults().foreach(e => println(mkCodeMultipleCtx(ctx, e)))
+
+    // Printer set up.
+    val writer = new PrintWriter(new File("email-name-outputFile.txt"))  //specify the file path
+    val results = enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e)).toSet
+    results.foreach(writer.println)
+    writer.close()
   }
 }

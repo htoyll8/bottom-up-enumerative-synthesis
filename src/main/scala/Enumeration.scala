@@ -122,7 +122,6 @@ class Enumeration(vocab: Vocab,
 
   def enumerate(): Unit = {
     while (currLevel <= LIM) {
-      println("Level: " + currLevel)
       initLevel()
       val candidates = newPrograms()
       while (candidates.hasNext) {
