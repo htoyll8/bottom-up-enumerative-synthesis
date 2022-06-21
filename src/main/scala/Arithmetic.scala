@@ -1,10 +1,11 @@
 package org.bottomup.arithmetic
 
-import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, indexOf, isAlpha, isDigit, length, lower, multiply, replaceStr, split, startsWith, strToList, substring, subtract, title, upper}
+import Arithmetic.Value.{add, append, arrJoin, concat, endsWith, equal, index, indexOf, isAlpha, isDigit, length, lower, multiply, replaceStr, reverseSubString, split, startsWith, strToList, substring, subtract, title, upper}
 
 import org.bottomup.arithmetic.Arithmetic.Verifier.indices
 
 import scala.collection.mutable.ListBuffer
+import scala.math.abs
 
 // Source: https://www.inf.ed.ac.uk/teaching/courses/epl/2017/assignment2/Assn2.scala
 // Source: https://www.inf.ed.ac.uk/teaching/courses/epl/2017/assignment2/Assn2Solution.scala
@@ -41,6 +42,7 @@ object Arithmetic {
   case class Upper(children: List[Expr]) extends Expr
   case class Title(children: List[Expr]) extends Expr
   case class StrSubStr(children: List[Expr]) extends Expr
+  case class ReverseSubStr(children: List[Expr]) extends Expr
   case class StrSplit(children: List[Expr]) extends Expr
   case class StrReplace(children: List[Expr]) extends Expr
   case class StrToList(children: List[Expr]) extends Expr
@@ -129,6 +131,7 @@ object Arithmetic {
     }
 
     def index(v1: Value, v2: Value): Value = (v1, v2) match {
+      case (StringV(v1), NumV(v2)) if v2 < 1 && abs(v2) <= v1.length => StringV(v1.takeRight(v2))
       case (StringV(v1), NumV(v2)) if v2 <= v1.length => StringV(v1.charAt(v2).toString)
       case (StringArrV(v1), NumV(v2)) if v2 <= v1.length => StringV(v1(v2))
       case (CharArrV(v1), NumV(v2)) if v2 <= v1.length => CharV(v1(v2))
@@ -150,6 +153,11 @@ object Arithmetic {
     def substring(v1: Value, v2: Value, v3: Value): Value = (v1, v2, v3) match {
       case (StringV(v1), NumV(v2), NumV(v3)) => StringV(v1.substring(v2,v3))
       case _ => sys.error("Argument to concat are not strings.")
+    }
+
+    def reverseSubString(v1: Value, v2: Value): Value = (v1, v2) match {
+      case (StringV(v1), NumV(v2)) => StringV(v1.takeRight(v2))
+      case _ => sys.error("Argument to reverseSubstring are not string and int.")
     }
 
     def split(v1: Value, v2: Value): Value = (v1, v2) match {
@@ -221,6 +229,7 @@ object Arithmetic {
 
   object Verifier {
     def indices(v1: Value, v2: Value): Boolean = (v1, v2) match {
+      case (StringV(v1), NumV(v2)) if v2 < 0 && abs(v2) < v1.length => true
       case (StringV(v1), NumV(v2)) if v2 >= 0 && v2 < v1.length => true
       case (StringArrV(v1), NumV(v2)) if v2 >= 0 && v2 < v1.length => true
       case (NumArrV(v1), NumV(v2)) if v2 >= 0 && v2 < v1.length => true
@@ -243,13 +252,14 @@ object Arithmetic {
       val toTitle = children.head
       toTitle match {
         case s: Str => s.s.trim.nonEmpty
+        case _: Title => false
         case _ => true
       }
     case "LOWER"           =>
       val toLower = children.head
       toLower match {
         case s: Str => s.s.trim.nonEmpty
-        case l: Lower => false
+        case _: Lower => false
         case _ => true
       }
     case "CONCAT"           =>
@@ -258,21 +268,35 @@ object Arithmetic {
     case "SPLIT"            =>
       val toSplit = children.head
       val sep = children.last
-        (toSplit ne sep) &&
+      val toSplitEval = evalUtil(env,toSplit).asInstanceOf[StringV].s
+      (toSplit ne sep) &&
           tyOf(typeCtx, toSplit) == StringTy &&
           tyOf(typeCtx, sep) == StringTy &&
-        (evalUtil(env,toSplit).asInstanceOf[StringV].s).contains(evalUtil(env,sep).asInstanceOf[StringV].s)
+          toSplitEval.length() > 1 &&
+          toSplitEval.contains(evalUtil(env,sep).asInstanceOf[StringV].s)
     case "STRINDEX"            =>
       val toIndex = children.head
       val sep = children.last
+      val toIndexEval = evalUtil(env,toIndex)
+      val sepEval = evalUtil(env,sep)
       toIndex match {
-        case s: Str => s.s.trim.nonEmpty && indices(evalUtil(env,s),evalUtil(env,sep))
-        case _ => indices(evalUtil(env,toIndex),evalUtil(env,sep))
+        case s: Str =>
+          s.s.trim.nonEmpty &&
+          toIndexEval.asInstanceOf[StringV].s.length > 1 &&
+          indices(toIndexEval,sepEval)
+        case _: StrSubStr => false
+        case _ =>
+          indices(toIndexEval,sepEval) &&
+          toIndexEval.asInstanceOf[StringV].s.length > 1
       }
     case "ARRINDEX"            =>
       val toIndex = children.head
       val sep = children.last
       indices(evalUtil(env,toIndex),evalUtil(env,sep))
+    case "REVERSESTRSUBSTR"        =>
+      val strLength = evalUtil(env,children.head).asInstanceOf[StringV].s.length
+      val endIdx = evalUtil(env,children.last).asInstanceOf[NumV].n
+      (endIdx < 0) && (endIdx <= strLength)
     case "STRSUBSTR"        =>
       val strLength = evalUtil(env,children.head).asInstanceOf[StringV].s.length
       val startIdx = evalUtil(env,children(1)).asInstanceOf[NumV].n
@@ -316,6 +340,8 @@ object Arithmetic {
       concat(evalUtil(env,e1),evalUtil(env,e2))
     case StrSubStr(List(e1,e2,e3)) =>
       substring(evalUtil(env,e1),evalUtil(env,e2),evalUtil(env,e3))
+    case ReverseSubStr(List(e1,e2)) =>
+      reverseSubString(evalUtil(env,e1),evalUtil(env,e2))
     case StrSplit(List(e1,e2)) =>
       split(evalUtil(env,e1),evalUtil(env,e2))
     case StrReplace(List(e1,e2,e3)) =>
@@ -381,6 +407,8 @@ object Arithmetic {
     case Length(List(e: Expr)) => "len(" + mkCode(env,e) + ")"
     case StrSubStr(List(e1,e2,e3)) =>
       mkCode(env,e1) + "[" + mkCode(env,e2) + ":" + mkCode(env,e3) + "]"
+    case ReverseSubStr(List(e1,e2)) =>
+      mkCode(env,e1) + "[" + mkCode(env,e2) + ":]"
     case StrSplit(List(e1,e2)) =>
       mkCode(env,e1) + ".split(" + mkCode(env,e2) + ")"
     case Index(List(e1,e2)) =>
@@ -486,6 +514,10 @@ object Arithmetic {
     }
     case StrSubStr(List(e1: Expr, e2: Expr, e3: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2),tyOf(ctx,e3)) match {
       case (StringTy,IntTy,IntTy) => StringTy
+      case _ => ErrTy
+    }
+    case ReverseSubStr(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
+      case (StringTy,IntTy) => StringTy
       case _ => ErrTy
     }
     case StrSplit(List(e1: Expr, e2: Expr)) => (tyOf(ctx,e1),tyOf(ctx,e2)) match {
@@ -599,6 +631,8 @@ object Arithmetic {
       astSize(e1) + astSize(e2) + 1
     case StrSubStr(List(e1,e2,e3)) =>
       astSize(e1) + astSize(e2) + astSize(e3) + 1
+    case ReverseSubStr(List(e1,e2)) =>
+      astSize(e1) + astSize(e2) + 1
     case StrReplace(List(e1,e2,e3)) =>
       astSize(e1) + astSize(e2) + astSize(e3) + 1
     case StrToList(List(e1)) =>
@@ -621,6 +655,7 @@ object Arithmetic {
     case "SPLIT"            => List(List(StringTy, StringTy))
     case "CONCAT"           => List(List(StringTy, StringTy))
     case "STRSUBSTR"        => List(List(StringTy, IntTy, IntTy))
+    case "REVERSESTRSUBSTR" => List(List(StringTy, IntTy))
     case "STRREPLACE"       => List(List(StringTy, StringTy, StringTy))
     case "STRINDEX"         => List(List(StringTy, IntTy))
 
@@ -645,6 +680,7 @@ object Arithmetic {
     case "UPPER"            => 1
     case "TITLE"            => 1
     case "STRSUBSTR"        => 3
+    case "REVERSESTRSUBSTR" => 2
     case "STRREPLACE"       => 3
     case "STRTOLIST"        => 1
 
@@ -657,50 +693,51 @@ object Arithmetic {
 
     // List
     case "ARRINDEX"         => 2
-    case "ARRAPPEND"       => 2
-    case "ARRJOIN"         => 2
+    case "ARRAPPEND"        => 2
+    case "ARRJOIN"          => 2
 
     // Function
-    case "LAMBDA"          => 3
+    case "LAMBDA"           => 3
 
     // Conditional
-    case "IFTHENELSE"      => 3
+    case "IFTHENELSE"       => 3
    }
 
   def init(e: String, children: List[Expr]): Expr = e match {
     // Arithmetic
-    case "PLUS"       => Plus(children)
-    case "MINUS"      => Minus(children)
-    case "TIMES"      => Times(children)
+    case "PLUS"              => Plus(children)
+    case "MINUS"             => Minus(children)
+    case "TIMES"             => Times(children)
 
     // String
-    case "LENGTH"     => Length(children)
-    case "INDEX"      => Index(children)
-    case "STRINDEX"   => StrIndex(children)
-    case "INDEXOF"    => IndexOf(children)
-    case "CONCAT"     => Concat(children)
-    case "SPLIT"      => StrSplit(children)
-    case "LOWER"      => Lower(children)
-    case "UPPER"      => Upper(children)
-    case "TITLE"      => Title(children)
-    case "STRSUBSTR"  => StrSubStr(children)
-    case "STRREPLACE" => StrReplace(children)
-    case "STRTOLIST"  => StrToList(children)
+    case "LENGTH"            => Length(children)
+    case "INDEX"             => Index(children)
+    case "STRINDEX"          => StrIndex(children)
+    case "INDEXOF"           => IndexOf(children)
+    case "CONCAT"            => Concat(children)
+    case "SPLIT"             => StrSplit(children)
+    case "LOWER"             => Lower(children)
+    case "UPPER"             => Upper(children)
+    case "TITLE"             => Title(children)
+    case "STRSUBSTR"         => StrSubStr(children)
+    case "REVERSESTRSUBSTR"  => ReverseSubStr(children)
+    case "STRREPLACE"        => StrReplace(children)
+    case "STRTOLIST"         => StrToList(children)
 
     // Boolean
-    case "EQ"         => Eq(children)
-    case "STARTSWITH" => StartsWith(children)
-    case "ENDSWITH"   => EndsWith(children)
-    case "ISALPHA"    => IsAlpha(children)
-    case "ISDIGIT"    => IsDigit(children)
+    case "EQ"                => Eq(children)
+    case "STARTSWITH"        => StartsWith(children)
+    case "ENDSWITH"          => EndsWith(children)
+    case "ISALPHA"           => IsAlpha(children)
+    case "ISDIGIT"           => IsDigit(children)
 
     // List
-    case "ARRINDEX"   => ArrIndex(children)
-    case "ARRAPPEND"  => ArrAppend(children)
-    case "ARRJOIN"    => ArrJoin(children)
+    case "ARRINDEX"          => ArrIndex(children)
+    case "ARRAPPEND"         => ArrAppend(children)
+    case "ARRJOIN"           => ArrJoin(children)
 
     // Conditional
-    case "IFTHENELSE" => IfThenElse(children)
+    case "IFTHENELSE"        => IfThenElse(children)
   }
 }
 

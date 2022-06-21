@@ -1,6 +1,7 @@
 package org.bottomup.arithmetic
 
-import Arithmetic.{Env, ErrTy, Expr, Index, Length, Num, NumV, Str, StrSplit, StrSubStr, Type, Value, Var, Variable, aryOf, astSize, childTypes, childrenAstSize, eval, init, mkCode, mkCodeMultipleCtx, tyOf, verify, verifyMultipleCtx}
+import Arithmetic.{Env, ErrTy, Expr, Index, Length, Num, NumV, Str, StrSplit, StrSubStr, Type, Value, Var, Variable, aryOf, astSize, childTypes, childrenAstSize, eval, evalUtil, init, mkCode, mkCodeMultipleCtx, tyOf, verify, verifyMultipleCtx}
+
 import scala.Console.in
 import scala.collection.mutable
 import scala.collection.mutable._
@@ -122,6 +123,7 @@ class Enumeration(vocab: Vocab,
 
   def enumerate(): Unit = {
     while (currLevel <= LIM) {
+      println("Level: " + currLevel)
       initLevel()
       val candidates = newPrograms()
       while (candidates.hasNext) {
@@ -176,7 +178,16 @@ class Enumeration(vocab: Vocab,
               val res = verifyMultipleCtx(opName, children, ctx, typeCtx)
               res
             })
-            newProgs ++= childrenParams.map(c => init(opName, c))
+
+            // Filter for self-loops (e.g., programs that don't change the subexpression value)
+            val programsToAdd: ListBuffer[Expr] = ListBuffer[Expr]()
+            for(child <- childrenParams) {
+              val newAST = init(opName, child)
+              if (child.forall(childAst => eval(ctx, childAst) != eval(ctx, newAST))) {
+                programsToAdd += newAST
+              }
+            }
+            newProgs ++= programsToAdd
           }
         }
       }
