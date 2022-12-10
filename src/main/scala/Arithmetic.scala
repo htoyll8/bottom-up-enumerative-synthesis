@@ -247,7 +247,10 @@ object Arithmetic {
     // String
     case "LENGTH"           =>
       val toLength = children.head
-      tyOf(typeCtx, toLength) == StringTy
+      val toLengthEval = evalUtil(env, toLength).asInstanceOf[StringV].s
+      tyOf(typeCtx, toLength) == StringTy &&
+        toLengthEval.length > 2 &&
+        !toLength.isInstanceOf[StrSubStr]
     case "TITLE"           =>
       val toTitle = children.head
       toTitle match {
@@ -263,6 +266,7 @@ object Arithmetic {
         case _ => true
       }
     case "CONCAT"           =>
+      !(children.head.isInstanceOf[Str] && children.last.isInstanceOf[Str]) &&
       evalUtil(env,children.head).asInstanceOf[StringV].s.nonEmpty &&
         evalUtil(env,children.last).asInstanceOf[StringV].s.nonEmpty
     case "SPLIT"            =>
@@ -281,13 +285,9 @@ object Arithmetic {
       val sepEval = evalUtil(env,sep)
       toIndex match {
         case s: Str =>
-          s.s.trim.nonEmpty &&
-          toIndexEval.asInstanceOf[StringV].s.length > 1 &&
-          indices(toIndexEval,sepEval)
+          s.s.trim.nonEmpty && indices(toIndexEval,sepEval)
         case _: StrSubStr => false
-        case _ =>
-          indices(toIndexEval,sepEval) &&
-          toIndexEval.asInstanceOf[StringV].s.length > 1
+        case _ => indices(toIndexEval,sepEval)
       }
     case "ARRINDEX"            =>
       val toIndex = children.head

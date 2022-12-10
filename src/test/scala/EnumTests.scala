@@ -57,7 +57,7 @@ class EnumTests extends AnyFunSuite {
       StringV("STHL")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 10)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 11)
     enumerator.initProgramBank()
     enumerator.enumerate()
 
@@ -155,15 +155,23 @@ class EnumTests extends AnyFunSuite {
       StringV("tpayne")
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 11)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 7)
     enumerator.initProgramBank()
     enumerator.enumerate()
 
     // Printer set up.
     val writer = new PrintWriter(new File("email-name-outputFile.txt"))  //specify the file path
     val results = enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e)).toSet
-    results.foreach(res => writer.println(res.mkString("\"", "", "\"")))
+    results.foreach(res => writer.println(res + ","))
     writer.close()
+
+    // Print top-k programs.
+    //    val topCandidates = enumerator.topKCandidates.slice(0,10).map(e => (mkCodeMultipleCtx(ctx, e), eval(ctx, e)))
+    //    for (x <- topCandidates) print(x)
+    val topCandidates = enumerator.sortValueSpace().map(e => (mkCodeMultipleCtx(ctx, e), eval(ctx, e)))
+    for (x <- topCandidates) {
+      println(x)
+    }
   }
 
   test("Employee ID") {
@@ -259,7 +267,7 @@ class EnumTests extends AnyFunSuite {
       StringV("Adam.Abraham@gmail.com"),
     )
 
-    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 11)
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 8)
     enumerator.initProgramBank()
     enumerator.enumerate()
 
@@ -269,6 +277,231 @@ class EnumTests extends AnyFunSuite {
       enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e)).toSet
       //enumerator.valueSpace.flatMap(_._2).map(e => mkCodeMultipleCtx(ctx, e)).toSet
     results.foreach(writer.println)
+    writer.close()
+  }
+
+  test("Extract Area Code") {
+    val vocab = Vocab(List(
+      Var("columnName"),
+      // Var("sep"),
+      Str(" "),
+      Str("-"),
+      Num(0),
+      Num(1),
+      Num(2),
+      Num(3),
+      Num(4)
+    ),
+      mutable.Map(
+        "SPLIT" -> 0,
+        "LENGTH" -> 0,
+        "STRINDEX" -> 0,
+        "ARRINDEX" -> 0,
+        "CONCAT" -> 0,
+        "STRSUBSTR" -> 0,
+        "STRREPLACE" -> 0,
+        "LENGTH" -> 0,
+      )
+    )
+
+    val ctx = List(
+      Map(
+        Var("columnName").x -> StringV("425-829-5512"),
+        Var("sep").x -> StringV(","),
+      ),
+    )
+
+    val typeCtx = Map(
+      Var("columnName").x -> StringTy,
+      Var("sep").x -> StringTy,
+    )
+
+    val res = List(
+      StringV("425"),
+    )
+
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 7)
+    enumerator.initProgramBank()
+    enumerator.enumerate()
+
+    // Printer set up.
+    val writer = new PrintWriter(new File("extract-area-code.txt"))  //specify the file path
+    val results =
+      enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e))
+        .distinct
+        .sortWith(_.length < _.length)
+    results.foreach(writer.println)
+    writer.close()
+
+    // Print top-k programs.
+    val topCandidates = enumerator.topKCandidates.slice(0,10).map(e => (mkCodeMultipleCtx(ctx, e), eval(ctx, e)))
+    for (x <- topCandidates) {
+      print(x)
+    }
+  }
+
+
+  test("Extract Last name") {
+    val vocab = Vocab(List(
+      Var("columnName"),
+      // Var("sep"),
+//      Str(","),
+//      Str("."),
+      Str(" "),
+      Num(0),
+      Num(1),
+      Num(2),
+      Num(3)
+    ),
+      mutable.Map(
+        "SPLIT" -> 0,
+//        "LENGTH" -> 0,
+        "STRINDEX" -> 0,
+        "ARRINDEX" -> 0,
+        "CONCAT" -> 0,
+        "STRSUBSTR" -> 0,
+//        "STRREPLACE" -> 0,
+//        "LENGTH" -> 0,
+      )
+    )
+
+    val ctx = List(
+      Map(
+        Var("columnName").x -> StringV("Greta Hermansson"),
+      ),
+    )
+
+    val typeCtx = Map(
+      Var("columnName").x -> StringTy,
+    )
+
+    val res = List(
+      StringV("Hermansson"),
+    )
+
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 8)
+    enumerator.initProgramBank()
+    enumerator.enumerate()
+
+    // Printer set up.
+    val writer = new PrintWriter(new File("extract-last-name.txt"))  //specify the file path
+    val results =
+      enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e))
+        .distinct
+        .sortWith(_.length < _.length)
+    results.foreach(res => { writer.println(res + ",") })
+    writer.close()
+  }
+
+
+  test("Add Bracket") {
+    val vocab = Vocab(List(
+      Var("SSN"),
+      // Var("sep"),
+      Str("]"),
+      Str("["),
+      Str(" "),
+      Num(0),
+      Num(1),
+      Num(2),
+      Num(3)
+    ),
+      mutable.Map(
+        //"SPLIT" -> 0,
+        "STRINDEX" -> 0,
+        "ARRINDEX" -> 0,
+        "CONCAT" -> 0,
+        "STRSUBSTR" -> 0,
+        "LENGTH" -> 0,
+      )
+    )
+
+    val ctx = List(
+      Map(
+        Var("SSN").x -> StringV("1739302"),
+      ),
+    )
+
+    val typeCtx = Map(
+      Var("SSN").x -> StringTy,
+    )
+
+    val res = List(
+      StringV("[1739302]"),
+    )
+
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 8)
+    enumerator.initProgramBank()
+    enumerator.enumerate()
+
+    // Printer set up.
+    val writer = new PrintWriter(new File("add-brackets.txt"))  //specify the file path
+    val results =
+      enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e))
+        .distinct
+        .sortWith(_.length < _.length)
+      //enumerator.valueSpace.flatMap(_._2).map(e => mkCodeMultipleCtx(ctx, e)).toSet
+    results.foreach(res => { writer.println(res + ",") })
+    writer.close()
+  }
+
+  test("Extract first name") {
+    val vocab = Vocab(List(
+      Var("name"),
+      Str(" "),
+      Num(0),
+      Num(1),
+      Num(2),
+      Num(4)
+    ),
+      mutable.Map(
+        "SPLIT" -> 0,
+        "STRSUBSTR" -> 0,
+        "LENGTH" -> 0,
+        "STRINDEX" -> 0,
+        "ARRINDEX" -> 0,
+        "CONCAT" -> 0,
+      )
+    )
+
+    val ctx = List(
+      Map(
+        Var("name").x -> StringV("Alice Smith"),
+      ),
+      Map(
+        Var("name").x -> StringV("Benjamin H. Baker"),
+      )
+    )
+
+    val typeCtx = Map(
+      Var("name").x -> StringTy,
+    )
+
+    val res = List(
+      StringV("Alice"),
+      StringV("Benjamin"),
+    )
+
+    val enumerator = new Enumeration(vocab, typeCtx, ctx, res, 7)
+    enumerator.initProgramBank()
+    enumerator.enumerate()
+//    enumerator.topKCandidates.slice(0,10).map(e => {
+//      (mkCodeMultipleCtx(ctx, e), eval(ctx, e).toList)
+//    }).foreach(println)
+
+    // Get top-k
+    val topCandidates = enumerator.sortValueSpace().map(e => (mkCodeMultipleCtx(ctx, e), eval(ctx, e)))
+    for (x <- topCandidates) {
+      println(x)
+    }
+
+    // Printer set up.
+    val writer = new PrintWriter(new File("extract-first-name.txt"))  //specify the file path
+    val results =
+      enumerator.computeResults().map(e => mkCodeMultipleCtx(ctx, e))
+        .distinct
+        .sortWith(_.length < _.length)
+    results.foreach(res => { writer.println(res + ",") })
     writer.close()
   }
 }
